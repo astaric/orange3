@@ -6,31 +6,109 @@ import pickle
 from amqplib import client_0_8 as amqp
 import json
 import functools
+import uuid
+import os
+import imp
 
 import Orange
+import Orange.data
+
+class ProxyEncoder(json.JSONEncoder):
+    def default(self, o):
+        if isinstance(o, Proxy):
+            return {"__jsonclass__": ('Proxy', o.__id__)}
+        return json.JSONEncoder.default(self, o)
 
 class Proxy:
     __id__ = None
 
+    results = {}
+
+    connection = amqp.Connection()
+    channel = connection.channel()
+    channel.queue_declare(queue="orange")
+
+    callback_queue, _, _ = channel.queue_declare(exclusive=True)
     @staticmethod
-    def channel() -> amqp.Channel:
-        if not hasattr(Proxy, "_channel"):
-            Proxy._connection = amqp.Connection()
-            Proxy._channel = Proxy._connection.channel()
-            Proxy._channel.queue_declare(queue="orange")
-        return Proxy._channel
+    def on_response(message : amqp.Message):
+        print("Received %s" % pickle.loads(message.body))
+        print(message.properties["correlation_id"])
+        Proxy.results[message.properties["correlation_id"]] = pickle.loads(message.body)
+        print(Proxy.results[message.properties["correlation_id"]])
+    channel.basic_consume(callback=on_response, no_ack=True,
+        queue=callback_queue)
+
+    def __new__(cls, *args, **kwargs):
+        self = object.__new__(Proxy)
+        if "__id__" in kwargs:
+            self.__id__ = kwargs["__id__"]
+        else:
+            self.__id__ = str(uuid.uuid1())
+            message = ProxyEncoder().encode({"module": cls.__originalclass__.__module__,
+                                             "class":  cls.__originalclass__.__name__,
+                                             "method": "__new__",
+                                             "args": args,
+                                             "kwargs": kwargs,
+                                             "result": self.__id__,})
+            Proxy.apply_async(message)
+        return self
+
+    @staticmethod
+    def disconnect():
+        Proxy.channel.close()
+        Proxy.connection.close()
+
+    @staticmethod
+    def apply_async(message):
+        Proxy.channel.basic_publish(amqp.Message(message), exchange="", routing_key="orange")
+
+    @staticmethod
+    def apply_sync(message):
+        requestid = str(uuid.uuid4())
+        message = amqp.Message(message, correlation_id=requestid, reply_to=Proxy.callback_queue)
+        Proxy.channel.basic_publish(message, exchange="", routing_key="orange")
+
+        while requestid not in Proxy.results:
+            Proxy.channel.wait()
+        print("Returning %s" % requestid)
+        return Proxy.results[requestid]
+
+    @staticmethod
+    def wrapped_function(name, f):
+        functools.wraps(f)
+        def function(self, *args, **kwargs):
+            __id__ = str(uuid.uuid1())
+            message = ProxyEncoder().encode({"object": self.__id__,
+                                             "method": str(name),
+                                             "args": args,
+                                             "kwargs":kwargs,
+                                             "result": __id__,})
+            Proxy.apply_async(message)
+            return AnonymousProxy(__id__)
+        return function
+
+    def __str__(self):
+        __id__ = str(uuid.uuid1())
+        message = ProxyEncoder().encode({"object": self.__id__,
+                                         "method": "__str__",
+                                         "args": [],
+                                         "kwargs":{},
+                                         "result": __id__,})
+        Proxy.apply_async(message)
+        return Proxy(__id__=__id__).get()
 
 
-    def __init__(self, *args, **kwargs):
-        message = json.dumps({"class": self.__class__.__module__ + "." + self.__class__.__name__,
-                              "method":"__init__",
-                              "args": args,
-                              "kwargs": kwargs})
-        Proxy.channel().basic_publish(amqp.Message(message), exchange="", routing_key="orange")
+    def get(self):
+        message = ProxyEncoder().encode({"object": self.__id__,
+                                         "method": "__get__"})
+        return Proxy.apply_sync(message)
 
-    foo = 7
-    def __getattr__(self, item):
-        return "5"
+    def __getnewargs__(self):#this line
+        return "__native__"
+
+class AnonymousProxy(Proxy):
+    def __getattribute__(self, item):
+        return Proxy.wrapped_function(item, lambda:None)
 
 new_to_old = {}
 old_to_new = {}
@@ -48,11 +126,11 @@ for importer, modname, ispkg in pkgutil.walk_packages(path=Orange.__path__, pref
                 new_class = old_to_new[class_]
             else:
                 class_.__bases__ = tuple([new_to_old.get(b, b) for b in class_.__bases__])
-                #functions = {}
-                #for name, f in inspect.getmembers(class_, inspect.isfunction):
-                #    functions["name"] = Proxy.wrapped_function(f, name)
+                members = {"__module__": modname, "__originalclass__": class_}
+                for n, f in inspect.getmembers(class_, inspect.isfunction):
+                    members[n] = Proxy.wrapped_function(n, f)
 
-                new_class = type('%sProxy'%name, (Proxy, class_), {"__module__": modname})
+                new_class = type('%sProxy'%name, (Proxy,), members)
                 old_to_new[class_] = new_class
 
             setattr(module, name, new_class)
@@ -60,7 +138,3 @@ for importer, modname, ispkg in pkgutil.walk_packages(path=Orange.__path__, pref
     except ImportError as err:
         warnings.warn("Failed to load module %s: %s"% (modname, err))
 
-t = Orange.data.ContinuousVariable(name="age")
-
-Proxy._channel.close()
-Proxy._connection.close()
