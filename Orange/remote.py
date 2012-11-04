@@ -7,16 +7,17 @@ from amqplib import client_0_8 as amqp
 import json
 import functools
 import uuid
-import os
-import imp
+import numpy as np
+import base64
 
 import Orange
-import Orange.data
 
 class ProxyEncoder(json.JSONEncoder):
     def default(self, o):
         if isinstance(o, Proxy):
             return {"__jsonclass__": ('Proxy', o.__id__)}
+        if isinstance(o, np.ndarray):
+            return {"__jsonclass__": ('PyObject', base64.b64encode(pickle.dumps(o)).decode("ascii"))}
         return json.JSONEncoder.default(self, o)
 
 class Proxy:
@@ -29,17 +30,13 @@ class Proxy:
     channel.queue_declare(queue="orange")
 
     callback_queue, _, _ = channel.queue_declare(exclusive=True)
-    @staticmethod
     def on_response(message : amqp.Message):
-        print("Received %s" % pickle.loads(message.body))
-        print(message.properties["correlation_id"])
         Proxy.results[message.properties["correlation_id"]] = pickle.loads(message.body)
-        print(Proxy.results[message.properties["correlation_id"]])
     channel.basic_consume(callback=on_response, no_ack=True,
         queue=callback_queue)
 
     def __new__(cls, *args, **kwargs):
-        self = object.__new__(Proxy)
+        self = object.__new__(cls)
         if "__id__" in kwargs:
             self.__id__ = kwargs["__id__"]
         else:
@@ -70,13 +67,14 @@ class Proxy:
 
         while requestid not in Proxy.results:
             Proxy.channel.wait()
-        print("Returning %s" % requestid)
         return Proxy.results[requestid]
 
     @staticmethod
     def wrapped_function(name, f):
         functools.wraps(f)
         def function(self, *args, **kwargs):
+            if name == "__init__":
+                return
             __id__ = str(uuid.uuid1())
             message = ProxyEncoder().encode({"object": self.__id__,
                                              "method": str(name),
@@ -84,7 +82,7 @@ class Proxy:
                                              "kwargs":kwargs,
                                              "result": __id__,})
             Proxy.apply_async(message)
-            return AnonymousProxy(__id__)
+            return AnonymousProxy(__id__=__id__)
         return function
 
     def __str__(self):
@@ -108,6 +106,8 @@ class Proxy:
 
 class AnonymousProxy(Proxy):
     def __getattribute__(self, item):
+        if item in {"__id__", "get"}:
+            return super().__getattribute__(item)
         return Proxy.wrapped_function(item, lambda:None)
 
 new_to_old = {}
@@ -135,6 +135,7 @@ for importer, modname, ispkg in pkgutil.walk_packages(path=Orange.__path__, pref
 
             setattr(module, name, new_class)
             new_to_old[new_class] = class_
+            print(new_class, getattr(module, name))
     except ImportError as err:
         warnings.warn("Failed to load module %s: %s"% (modname, err))
 
