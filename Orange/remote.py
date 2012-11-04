@@ -1,11 +1,11 @@
 import inspect
 import pkgutil
-import importlib
+import importlib, imp
 import warnings
 import pickle
 from amqplib import client_0_8 as amqp
 import json
-import functools
+from functools import wraps
 import uuid
 import numpy as np
 import base64
@@ -41,12 +41,11 @@ class Proxy:
             self.__id__ = kwargs["__id__"]
         else:
             self.__id__ = str(uuid.uuid1())
-            message = ProxyEncoder().encode({"module": cls.__originalclass__.__module__,
-                                             "class":  cls.__originalclass__.__name__,
-                                             "method": "__new__",
-                                             "args": args,
-                                             "kwargs": kwargs,
-                                             "result": self.__id__,})
+            message = ProxyEncoder().encode({"create": {"module": cls.__originalmodule__,
+                                                        "class_":  cls.__originalclass__,
+                                                        "args": args,
+                                                        "kwargs": kwargs,
+                                                        "result": self.__id__,}})
             Proxy.apply_async(message)
         return self
 
@@ -57,7 +56,9 @@ class Proxy:
 
     @staticmethod
     def apply_async(message):
-        Proxy.channel.basic_publish(amqp.Message(message), exchange="", routing_key="orange")
+        requestid = str(uuid.uuid4())
+        message = amqp.Message(message, correlation_id=requestid, reply_to=Proxy.callback_queue)
+        Proxy.channel.basic_publish(message, exchange="", routing_key="orange")
 
     @staticmethod
     def apply_sync(message):
@@ -71,38 +72,48 @@ class Proxy:
 
     @staticmethod
     def wrapped_function(name, f):
-        functools.wraps(f)
+        @wraps(f)
         def function(self, *args, **kwargs):
             if name == "__init__":
                 return
             __id__ = str(uuid.uuid1())
-            message = ProxyEncoder().encode({"object": self.__id__,
-                                             "method": str(name),
-                                             "args": args,
-                                             "kwargs":kwargs,
-                                             "result": __id__,})
+            message = ProxyEncoder().encode({"call": {"object": self.__id__,
+                                                      "method": str(name),
+                                                      "args": args,
+                                                      "kwargs":kwargs,
+                                                      "result": __id__,}})
             Proxy.apply_async(message)
             return AnonymousProxy(__id__=__id__)
         return function
 
+    @staticmethod
+    def wrapped_member(name, f):
+        @wraps(f)
+        def function(self):
+            __id__ = str(uuid.uuid1())
+            message = ProxyEncoder().encode({"get": {"object": self.__id__,
+                                                     "member": name,
+                                                     "result": __id__}})
+            Proxy.apply_async(message)
+            return AnonymousProxy(__id__=__id__)
+        return property(function)
+
     def __str__(self):
         __id__ = str(uuid.uuid1())
-        message = ProxyEncoder().encode({"object": self.__id__,
-                                         "method": "__str__",
-                                         "args": [],
-                                         "kwargs":{},
-                                         "result": __id__,})
+        message = ProxyEncoder().encode({"call": {"object": self.__id__,
+                                                  "method": "__str__",
+                                                  "result": __id__,}})
         Proxy.apply_async(message)
         return Proxy(__id__=__id__).get()
 
-
     def get(self):
-        message = ProxyEncoder().encode({"object": self.__id__,
-                                         "method": "__get__"})
+        message = ProxyEncoder().encode({"get": {"object": self.__id__}})
         return Proxy.apply_sync(message)
 
-    def __getnewargs__(self):#this line
-        return "__native__"
+    def __getattr__(self, item):
+        if item in {"__getnewargs__", "__getstate__", "__setstate__"}: raise AttributeError
+        return Proxy.wrapped_member(item, lambda:None).fget(self)
+
 
 class AnonymousProxy(Proxy):
     def __getattribute__(self, item):
@@ -110,6 +121,10 @@ class AnonymousProxy(Proxy):
             return super().__getattribute__(item)
         return Proxy.wrapped_function(item, lambda:None)
 
+
+import sys, imp
+proxies = imp.new_module('proxies')
+sys.modules['proxies'] = proxies
 new_to_old = {}
 old_to_new = {}
 
@@ -126,16 +141,24 @@ for importer, modname, ispkg in pkgutil.walk_packages(path=Orange.__path__, pref
                 new_class = old_to_new[class_]
             else:
                 class_.__bases__ = tuple([new_to_old.get(b, b) for b in class_.__bases__])
-                members = {"__module__": modname, "__originalclass__": class_}
+                members = {"__module__": "proxies",
+                           "__originalclass__": class_.__name__,
+                           "__originalmodule__":class_.__module__ }
                 for n, f in inspect.getmembers(class_, inspect.isfunction):
+                    if n.startswith("__"): continue
                     members[n] = Proxy.wrapped_function(n, f)
 
-                new_class = type('%sProxy'%name, (Proxy,), members)
+                for n, p in inspect.getmembers(class_, inspect.isdatadescriptor):
+                    if n.startswith("__"): continue
+                    members[n] = Proxy.wrapped_member(n, p)
+
+                newname = '%s_%s'% (class_.__module__.replace(".", "_"), name)
+                new_class = type(newname, (Proxy,), members)
                 old_to_new[class_] = new_class
+                setattr(proxies, newname, new_class)
 
             setattr(module, name, new_class)
             new_to_old[new_class] = class_
-            print(new_class, getattr(module, name))
     except ImportError as err:
         warnings.warn("Failed to load module %s: %s"% (modname, err))
 

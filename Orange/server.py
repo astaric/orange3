@@ -4,6 +4,32 @@ import importlib
 import base64
 import logging
 
+class Command:
+    result = None
+
+    def __init__(self, **params):
+        for n, v in params.items():
+            if not hasattr(self, n):
+                logging.error(params.items())
+                raise AttributeError("'%s' object has no attribute '%s'" % (self.__class__.__name__, n))
+            setattr(self, n, v)
+
+class Create(Command):
+    module = ""
+    class_ = ""
+    args   = ()
+    kwargs = {}
+
+class Call(Command):
+    object = ""
+    method = ""
+    args   = ()
+    kwargs = {}
+
+class Get(Command):
+    object = ""
+    member = ""
+
 class Proxy:
     __id__ = None
 
@@ -36,39 +62,55 @@ class Server:
         request = json.JSONDecoder(object_hook=self.object_hook).decode(msg.body)
         self.logger.info(" [x] Received: %s", msg.body)
 
-        if request["method"] == "__new__":
-            module = importlib.import_module(request["module"])
-            cls = getattr(module, request["class"])
+        if isinstance(request, Create):
+            module = importlib.import_module(request.module)
+            cls = getattr(module, request.class_)
             try:
-                obj = cls(*request["args"], **request["kwargs"])
-                self.cache[request["result"]] = obj
-                self.logger.debug("Created object %s", obj)
+                obj = cls(*request.args, **request.kwargs)
+                self.cache[request.result] = obj
             except Exception as err:
-                self.logger.error("[ERROR] Call to %s(*%s, **%s) failed (%s).",
-                                  request["class"], request["args"], request["kwargs"], err)
-        elif request["method"] == "__get__":
+                self.logger.error("Call to %s(*%s, **%s) failed (%s).",
+                                  request.class_, request.args, request.kwargs, err)
+        elif isinstance(request, Call):
             try:
-                obj = self.cache[request["object"]]
-                message = amqp.Message(pickle.dumps(obj),
-                    correlation_id=msg.properties["correlation_id"])
-                self.channel.basic_publish(message,
-                    exchange='',
-                    routing_key=msg.properties["reply_to"]
-                )
-            except KeyError:
-                self.logger.error("Getting of object %s failed, no such object exists.", request["object"])
-
-        else:
-            obj = self.cache[request["object"]]
-            try:
-                result = getattr(obj, request["method"])(*request["args"], **request["kwargs"])
-                self.cache[request["result"]] = result
+                obj = self.cache[request.object]
+                result = getattr(obj, request.method)(*request.args, **request.kwargs)
+                self.cache[request.result] = result
                 self.logger.debug("Returned %s", result)
+            except KeyError:
+                self.logger.error('I have never heard of object %s', request.object)
             except Exception as err:
-                self.logger.error("[ERROR] Call to %s.%s(*%s, **%s) failed. (%s)",
-                                  obj.__class__.__name__, request["method"], request["args"], request["kwargs"], err)
+                self.logger.error("Call to %s.%s(*%s, **%s) failed. (%s)",
+                    obj.__class__.__name__, request.method, request.args, request.kwargs, err)
+
+        elif isinstance(request, Get):
+            try:
+                obj = self.cache[request.object]
+                if request.member == '':
+                    message = amqp.Message(pickle.dumps(obj),
+                                           correlation_id=msg.properties["correlation_id"])
+                    self.channel.basic_publish(message,
+                        exchange='',
+                        routing_key=msg.properties["reply_to"]
+                    )
+                else:
+                    result = getattr(obj, request.member)
+                    self.cache[request.result] = result
+                    self.logger.debug("Returned %s", result)
+            except KeyError:
+                self.logger.error("Getting of object %s failed, no such object exists.", request.object)
+
 
     def object_hook(self, pairs):
+        if 'create' in pairs:
+            return Create(**pairs['create'])
+
+        if 'call' in pairs:
+            return Call(**pairs['call'])
+
+        if 'get' in pairs:
+            return Get(**pairs['get'])
+
         if '__jsonclass__' in pairs:
             constructor, param = pairs['__jsonclass__']
             if constructor == "Proxy":
