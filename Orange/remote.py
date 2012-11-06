@@ -15,7 +15,7 @@ import Orange
 class ProxyEncoder(json.JSONEncoder):
     def default(self, o):
         if isinstance(o, Proxy):
-            return {"__jsonclass__": ('Proxy', o.__id__)}
+            return {"__jsonclass__": ('Promise', o.__id__)}
         if isinstance(o, np.ndarray):
             return {"__jsonclass__": ('PyObject', base64.b64encode(pickle.dumps(o)).decode("ascii"))}
         return json.JSONEncoder.default(self, o)
@@ -77,7 +77,7 @@ class Proxy:
             if name == "__init__":
                 return
             __id__ = str(uuid.uuid1())
-            message = ProxyEncoder().encode({"call": {"object": self.__id__,
+            message = ProxyEncoder().encode({"call": {"object": self,
                                                       "method": str(name),
                                                       "args": args,
                                                       "kwargs":kwargs,
@@ -91,7 +91,7 @@ class Proxy:
         @wraps(f)
         def function(self):
             __id__ = str(uuid.uuid1())
-            message = ProxyEncoder().encode({"get": {"object": self.__id__,
+            message = ProxyEncoder().encode({"get": {"object": self,
                                                      "member": name,
                                                      "result": __id__}})
             Proxy.apply_async(message)
@@ -100,14 +100,14 @@ class Proxy:
 
     def __str__(self):
         __id__ = str(uuid.uuid1())
-        message = ProxyEncoder().encode({"call": {"object": self.__id__,
+        message = ProxyEncoder().encode({"call": {"object": self,
                                                   "method": "__str__",
-                                                  "result": __id__,}})
-        Proxy.apply_async(message)
-        return Proxy(__id__=__id__).get()
+                                                  "result": __id__,
+                                                  "return_result": True}})
+        return Proxy.apply_sync(message)
 
     def get(self):
-        message = ProxyEncoder().encode({"get": {"object": self.__id__}})
+        message = ProxyEncoder().encode({"get": {"object": self}})
         return Proxy.apply_sync(message)
 
     def __getattr__(self, item):
