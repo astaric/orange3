@@ -1,60 +1,11 @@
 from amqplib import client_0_8 as amqp
 import json, pickle
-import importlib
 import base64
 import logging
 
+from .commands import Create, Call, Get
+
 cache = {}
-
-class Command:
-    result = None
-    return_result = False
-
-    def __init__(self, **params):
-        for n, v in params.items():
-            if not hasattr(self, n):
-                logging.error(params.items())
-                raise AttributeError("'{}' object has no attribute '{}'".
-                                     format(self.__class__.__name__, n))
-            setattr(self, n, v)
-
-class Create(Command):
-    module = ""
-    class_ = ""
-    args   = ()
-    kwargs = {}
-
-    def execute(self):
-        module = importlib.import_module(self.module)
-        cls = getattr(module, self.class_)
-        return cls(*self.args, **self.kwargs)
-
-    def __str__(self):
-        return "{}.{}(*{}, **{})".format(
-            self.module, self.class_, self.args, self.kwargs
-        )
-
-class Call(Command):
-    object = ""
-    method = ""
-    args   = ()
-    kwargs = {}
-
-    def execute(self):
-        return getattr(self.object, self.method)(*self.args, **self.kwargs)
-
-    def __str__(self):
-        return "{}.{}(*{}, **{})".format(
-            self.object, self.method, self.args, self.kwargs
-        )
-
-class Get(Command):
-    object = ""
-    member = ""
-
-    def execute(self):
-        return getattr(self.object, self.member)
-
 
 class Promise:
     def __init__(self, id):
@@ -82,7 +33,7 @@ class Server:
         self.channel.queue_declare(queue="orange")
         self.cache = {}
         self.channel.basic_consume(queue="orange", callback=self.data_received)
-        self.logger.info(" [*] Waiting for messages. To exit press CTRL+C")
+        self.logger.info("Waiting for messages. To exit press CTRL+C")
 
     def start(self):
         try:
@@ -92,12 +43,12 @@ class Server:
             pass
         self.channel.close()
         self.connection.close()
-        self.logger.info(" [*] Closing connection")
+        self.logger.info("Closing connection")
 
 
     def data_received(self, msg : amqp.Message):
         command = json.JSONDecoder(object_hook=self.object_hook).decode(msg.body)
-        self.logger.info(" [x] Received: %s", msg.body)
+        self.logger.info("Received: %s", msg.body)
 
         try:
             result = command.execute()
