@@ -1,9 +1,17 @@
-from amqplib import client_0_8 as amqp
-import json, pickle
+import cgi
+from http.server import BaseHTTPRequestHandler
+import io
+import json
+import pickle
 import base64
 import logging
+import shutil
+import socketserver
+import sys
 
-from .commands import Create, Call, Get
+
+from Orange.server.commands import Create, Call, Get, Command
+import uuid
 
 cache = {}
 
@@ -24,52 +32,81 @@ class Proxy:
     def __init__(self, id):
         self.__id__ = id
 
-class Server:
-    def __init__(self):
-        self.logger = logging.getLogger("Server")
 
-        self.connection = amqp.Connection()
-        self.channel = self.connection.channel()
-        self.channel.queue_declare(queue="orange")
-        self.cache = {}
-        self.channel.basic_consume(queue="orange", callback=self.data_received)
-        self.logger.info("Waiting for messages. To exit press CTRL+C")
+class ExecutionFailedError(Exception):
+    pass
 
-    def start(self):
+
+class OrangeServer(BaseHTTPRequestHandler):
+    def __init__(self, request, client_address, server):
+        super(OrangeServer, self).__init__(request, client_address, server)
+
+    def do_GET(self):
+        path = self.path.strip("/")
+        if "/" not in path:
+            return self.send_error(400, "Invalid resource")
+        resource, id = path.split("/", 1)
+
+        if id not in cache:
+            return self.send_error(404, "Resource {} not found".format(id))
+
+        buf = pickle.dumps(cache[id])
+        f = io.BytesIO(buf)
+        self.send_response(200)
+        self.send_header("Content-type", "application/octet-stream")
+        self.send_header("Content-Disposition", "attachment;filename={}.pickle"
+                                                .format(id))
+        self.send_header("Content-Length", str(len(buf)))
+        self.end_headers()
+
+        shutil.copyfileobj(f, self.wfile)
+        f.close()
+
+    def do_POST(self):
+        result_id = str(uuid.uuid1())
         try:
-            while True:
-                self.channel.wait()
-        except KeyboardInterrupt:
-            pass
-        self.channel.close()
-        self.connection.close()
-        self.logger.info("Closing connection")
+            data = self.parse_post_data()
+            if isinstance(data, Command):
+                result = self.execute_command(data)
+                cache[result_id] = result
+            else:
+                cache[result_id] = data
+        except AttributeError as err:
+            return self.send_error(400, str(err))
+        except ExecutionFailedError as err:
+            return self.send_error(500, str(err))
 
 
-    def data_received(self, msg : amqp.Message):
-        command = json.JSONDecoder(object_hook=self.object_hook).decode(msg.body)
-        self.logger.info("Received: %s", msg.body)
+        encoded = result_id.encode('utf-8')
+        self.send_response(200)
+        self.send_header("Content-Type", "text/html; charset=utf-8")
+        self.send_header("Content-Length", str(len(encoded)))
 
-        try:
-            result = command.execute()
-            self.cache[command.result] = result
-        except Exception as err:
-            self.logger.error("Execution of {} failed with error: {}".
-                              format(command, err))
-            return
+        self.end_headers()
 
-        if command.return_result:
-            message = amqp.Message(pickle.dumps(result),
-                correlation_id=msg.properties["correlation_id"])
-            self.channel.basic_publish(message,
-                exchange='',
-                routing_key=msg.properties["reply_to"]
-            )
+        f = io.BytesIO()
+        f.write(encoded)
+        f.seek(0)
+        shutil.copyfileobj(f, self.wfile)
+        f.close()
 
+    def parse_post_data(self):
+        content_len = int(self.headers['content-length'] or 0)
+        content_type = self.headers.get_content_type()
+        data = self.rfile.read(content_len)
+
+
+        if content_type == 'application/octet-stream':
+            return pickle.loads(data)
+        elif content_type == 'application/json':
+            return json.JSONDecoder(object_hook=self.object_hook).decode(data.decode('utf-8'))
+        else:
+            return data
 
     def object_hook(self, pairs):
         if 'create' in pairs:
-            return Create(**pairs['create'])
+            params = pairs['create'] or {}
+            return Create(**params)
 
         if 'call' in pairs:
             return Call(**pairs['call'])
@@ -80,15 +117,44 @@ class Server:
         if '__jsonclass__' in pairs:
             constructor, param = pairs['__jsonclass__']
             if constructor == "Promise":
-                return self.cache[param]
-            if constructor == "PyObject":
-                return pickle.loads(base64.b64decode(param.encode("ascii")))
+                return cache[param]
 
         return pairs
 
+    def process_request(self):
+        path = self.path.strip("/")
+
+        post_vars = self.parse_post_data()
+        if path == "create":
+            return Create(**post_vars)
+        elif path == 'call':
+            return Call(**post_vars)
+        elif path == 'getattr':
+            return Get(**post_vars)
+
+    def execute_command(self, command):
+        try:
+            return command.execute()
+        except Exception as ex:
+            raise ExecutionFailedError(
+                "Execution of {} failed with error: {}"
+                .format(command, ex)) from ex
+
+
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.DEBUG,
+    logging.basicConfig(
+        level=logging.DEBUG,
         format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s',
         datefmt='%m-%d %H:%M')
 
-    Server().start()
+    PORT = 8000
+
+    Handler = OrangeServer
+
+    httpd = socketserver.TCPServer(("", PORT), Handler)
+
+    print("serving at port", PORT)
+    try:
+        httpd.serve_forever()
+    except Exception as ex:
+        httpd.server_close()

@@ -9,9 +9,12 @@ class Command:
     def __init__(self, **params):
         for n, v in params.items():
             if not hasattr(self, n):
-                raise AttributeError("'{}' object has no attribute '{}'".
-                format(self.__class__.__name__, n))
+                raise AttributeError("{} is not a valid parameter for {}"
+                                     .format(n, self.__class__.__name__))
             setattr(self, n, v)
+
+    def execute(self):
+        raise NotImplementedError()
 
 
 class Create(Command):
