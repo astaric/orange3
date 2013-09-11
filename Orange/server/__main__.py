@@ -75,6 +75,8 @@ class OrangeServer(BaseHTTPRequestHandler):
             return self.send_error(400, str(err))
         except ExecutionFailedError as err:
             return self.send_error(500, str(err))
+        except ValueError as err:
+            return self.send_error(400, str(err))
 
 
         encoded = result_id.encode('utf-8')
