@@ -3,17 +3,15 @@ from http.server import BaseHTTPRequestHandler
 import io
 import json
 import pickle
-import base64
 import logging
 import shutil
 import socketserver
-import sys
-
 
 from Orange.server.commands import Create, Call, Get, Command
 import uuid
 
 cache = {}
+
 
 class Promise:
     def __init__(self, id):
@@ -42,20 +40,17 @@ class OrangeServer(BaseHTTPRequestHandler):
         super(OrangeServer, self).__init__(request, client_address, server)
 
     def do_GET(self):
-        path = self.path.strip("/")
-        if "/" not in path:
-            return self.send_error(400, "Invalid resource")
-        resource, id = path.split("/", 1)
+        resource_id = self.path.strip("/")
 
-        if id not in cache:
-            return self.send_error(404, "Resource {} not found".format(id))
+        if resource_id not in cache:
+            return self.send_error(404, "Resource {} not found".format(resource_id))
 
-        buf = pickle.dumps(cache[id])
+        buf = pickle.dumps(cache[resource_id])
         f = io.BytesIO(buf)
         self.send_response(200)
-        self.send_header("Content-type", "application/octet-stream")
+        self.send_header("Content-Type", "application/octet-stream")
         self.send_header("Content-Disposition", "attachment;filename={}.pickle"
-                                                .format(id))
+                                                .format(resource_id))
         self.send_header("Content-Length", str(len(buf)))
         self.end_headers()
 
@@ -78,7 +73,6 @@ class OrangeServer(BaseHTTPRequestHandler):
         except ValueError as err:
             return self.send_error(400, str(err))
 
-
         encoded = result_id.encode('utf-8')
         self.send_response(200)
         self.send_header("Content-Type", "text/html; charset=utf-8")
@@ -97,7 +91,6 @@ class OrangeServer(BaseHTTPRequestHandler):
         content_type = self.headers.get_content_type()
         data = self.rfile.read(content_len)
 
-
         if content_type == 'application/octet-stream':
             return pickle.loads(data)
         elif content_type == 'application/json':
@@ -105,10 +98,10 @@ class OrangeServer(BaseHTTPRequestHandler):
         else:
             return data
 
-    def object_hook(self, pairs):
+    @staticmethod
+    def object_hook(pairs):
         if 'create' in pairs:
-            params = pairs['create'] or {}
-            return Create(**params)
+            return Create(**pairs['create'])
 
         if 'call' in pairs:
             return Call(**pairs['call'])
@@ -134,13 +127,14 @@ class OrangeServer(BaseHTTPRequestHandler):
         elif path == 'getattr':
             return Get(**post_vars)
 
-    def execute_command(self, command):
+    @staticmethod
+    def execute_command(command):
         try:
             return command.execute()
-        except Exception as ex:
+        except Exception as err:
             raise ExecutionFailedError(
                 "Execution of {} failed with error: {}"
-                .format(command, ex)) from ex
+                .format(command, err)) from err
 
 
 if __name__ == "__main__":

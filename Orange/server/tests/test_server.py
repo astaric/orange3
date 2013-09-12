@@ -32,25 +32,25 @@ class OrangeServerTests(unittest.TestCase):
     def test_returns_resource(self):
         orange_server.cache["123"] = "456"
 
-        self.server_connection.request("GET", "/resource/123")
+        self.server_connection.request("GET", "/123")
         response = self.server_connection.getresponse()
 
         self.assertEqual(response.status, 200)
         self.assertEqual(self.read_data(response), "456")
 
-    def test_returns_error_400_on_empty_get_request(self):
+    def test_returns_error_404_on_empty_get_request(self):
         self.server_connection.request("GET", "/")
-        response = self.server_connection.getresponse()
-
-        self.assertEqual(response.status, 400)
-
-    def test_returns_error_404_on_unknown_resource(self):
-        self.server_connection.request("GET", "/resource/123")
         response = self.server_connection.getresponse()
 
         self.assertEqual(response.status, 404)
 
-    def test_creates_objects(self):
+    def test_returns_error_404_on_unknown_resource(self):
+        self.server_connection.request("GET", "/123")
+        response = self.server_connection.getresponse()
+
+        self.assertEqual(response.status, 404)
+
+    def test_create_adds_objects_to_cache(self):
         self.server_connection.request(
             "POST", "/create",
             """{"create": {"module": "builtins",
@@ -58,6 +58,17 @@ class OrangeServerTests(unittest.TestCase):
                            "args": ["456"]}}""",
             {"Content-Type": "application/json"})
         response = self.server_connection.getresponse()
+        self.assertEqual(response.status, 200)
+        object_id = self.read_data(response)
+        self.assertEqual(orange_server.cache[object_id], "456")
+
+    def test_create_accepts_uploaded_objects(self):
+        self.server_connection.request(
+            "POST", "/create",
+            pickle.dumps("456"),
+            {"Content-Type": "application/octet-stream"})
+        response = self.server_connection.getresponse()
+
         self.assertEqual(response.status, 200)
         object_id = self.read_data(response)
         self.assertEqual(orange_server.cache[object_id], "456")
@@ -72,6 +83,33 @@ class OrangeServerTests(unittest.TestCase):
 
         self.assertEqual(response.status, 400)
 
+    def test_create_returns_500_on_exception(self):
+        self.server_connection.request(
+            "POST", "/create",
+            """{"create": {"module": "builtins",
+                           "class_": "int",
+                           "args": ["4a"]}}""",
+            {"Content-Type": "application/json"})
+        response = self.server_connection.getresponse()
+
+        self.assertEqual(response.status, 500)
+
+    def test_call_adds_objects_to_cache(self):
+        orange_server.cache["x"] = []
+        self.server_connection.request(
+            "POST", "/call",
+            """{"call": {"object": {"__jsonclass__": ["Promise", "x"]},
+                           "method": "append",
+                           "args": ["x"]}}""",
+            {"Content-Type": "application/json"})
+        response = self.server_connection.getresponse()
+
+        self.assertEqual(response.status, 200)
+        object_id = self.read_data(response)
+        self.assertEqual(orange_server.cache[object_id], None)
+        self.assertEqual(orange_server.cache['x'], ['x'])
+
+
     @staticmethod
     def read_data(response):
         response_len = int(response.getheader("Content-Length", 0))
@@ -80,6 +118,7 @@ class OrangeServerTests(unittest.TestCase):
             return pickle.loads(response_data)
         else:
             return response_data.decode('utf-8')
+
 
 if __name__ == '__main__':
     unittest.main()
