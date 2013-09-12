@@ -116,17 +116,6 @@ class OrangeServer(BaseHTTPRequestHandler):
 
         return pairs
 
-    def process_request(self):
-        path = self.path.strip("/")
-
-        post_vars = self.parse_post_data()
-        if path == "create":
-            return Create(**post_vars)
-        elif path == 'call':
-            return Call(**post_vars)
-        elif path == 'getattr':
-            return Get(**post_vars)
-
     @staticmethod
     def execute_command(command):
         try:
