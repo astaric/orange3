@@ -51,7 +51,7 @@ class OrangeServerTests(unittest.TestCase):
 
     def test_create_adds_objects_to_cache(self):
         self.server_connection.request(
-            "POST", "/create",
+            "POST", "create",
             """{"create": {"module": "builtins",
                            "class_": "str",
                            "args": ["456"]}}""",
@@ -63,7 +63,7 @@ class OrangeServerTests(unittest.TestCase):
 
     def test_create_accepts_uploaded_objects(self):
         self.server_connection.request(
-            "POST", "/create",
+            "POST", "create",
             pickle.dumps("456"),
             {"Content-Type": "application/octet-stream"})
         response = self.server_connection.getresponse()
@@ -74,7 +74,7 @@ class OrangeServerTests(unittest.TestCase):
 
     def test_create_returns_400_on_invalid_json_in_request(self):
         self.server_connection.request(
-            "POST", "/create",
+            "POST", "create",
             """Invalid json""",
             {"Content-Type": "application/json"})
 
@@ -96,7 +96,7 @@ class OrangeServerTests(unittest.TestCase):
     def test_call_adds_objects_to_cache(self):
         orange_server.cache["x"] = []
         self.server_connection.request(
-            "POST", "/call",
+            "POST", "call",
             """{"call": {"object": {"__jsonclass__": ["Promise", "x"]},
                            "method": "append",
                            "args": ["x"]}}""",

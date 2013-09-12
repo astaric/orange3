@@ -1,16 +1,20 @@
+from http.client import HTTPConnection
 import inspect
 import pkgutil
-import importlib, imp
+import importlib
 import warnings
 import pickle
-from amqplib import client_0_8 as amqp
 import json
 from functools import wraps
-import uuid
 import numpy as np
 import base64
 
 import Orange
+
+
+def get_server_address():
+    return '127.0.0.1', 8000
+
 
 class ProxyEncoder(json.JSONEncoder):
     def default(self, o):
@@ -20,116 +24,97 @@ class ProxyEncoder(json.JSONEncoder):
             return {"__jsonclass__": ('PyObject', base64.b64encode(pickle.dumps(o)).decode("ascii"))}
         return json.JSONEncoder.default(self, o)
 
+
 class Proxy:
     __id__ = None
 
     results = {}
 
-    connection = amqp.Connection()
-    channel = connection.channel()
-    channel.queue_declare(queue="orange")
-
-    callback_queue, _, _ = channel.queue_declare(exclusive=True)
-    def on_response(message : amqp.Message):
-        Proxy.results[message.properties["correlation_id"]] = pickle.loads(message.body)
-    channel.basic_consume(callback=on_response, no_ack=True,
-        queue=callback_queue)
-
     def __new__(cls, *args, **kwargs):
-        self = object.__new__(cls)
+        self = super().__new__(cls)
         if "__id__" in kwargs:
             self.__id__ = kwargs["__id__"]
         else:
-            self.__id__ = str(uuid.uuid1())
-            message = ProxyEncoder().encode({"create": {"module": cls.__originalmodule__,
-                                                        "class_":  cls.__originalclass__,
-                                                        "args": args,
-                                                        "kwargs": kwargs,
-                                                        "result": self.__id__,}})
-            Proxy.apply_async(message)
+            self.__id__ = cls.execute_on_server(
+                "create",
+                module=cls.__originalmodule__, class_=cls.__originalclass__,
+                args=args, kwargs=kwargs)
         return self
 
     @staticmethod
-    def disconnect():
-        Proxy.channel.close()
-        Proxy.connection.close()
-
-    @staticmethod
-    def apply_async(message):
-        requestid = str(uuid.uuid4())
-        message = amqp.Message(message, correlation_id=requestid, reply_to=Proxy.callback_queue)
-        Proxy.channel.basic_publish(message, exchange="", routing_key="orange")
-
-    @staticmethod
-    def apply_sync(message):
-        requestid = str(uuid.uuid4())
-        message = amqp.Message(message, correlation_id=requestid, reply_to=Proxy.callback_queue)
-        Proxy.channel.basic_publish(message, exchange="", routing_key="orange")
-
-        while requestid not in Proxy.results:
-            Proxy.channel.wait()
-        return Proxy.results[requestid]
-
-    @staticmethod
-    def wrapped_function(name, f):
-        @wraps(f)
+    def wrapped_function(function_name, function):
+        @wraps(function)
         def function(self, *args, **kwargs):
-            if name == "__init__":
+            if function_name == "__init__":
                 return
-            __id__ = str(uuid.uuid1())
-            message = ProxyEncoder().encode({"call": {"object": self,
-                                                      "method": str(name),
-                                                      "args": args,
-                                                      "kwargs":kwargs,
-                                                      "result": __id__,}})
-            Proxy.apply_async(message)
+            __id__ = Proxy.execute_on_server("call", object=self, method=str(function_name), args=args, kwargs=kwargs)
             return AnonymousProxy(__id__=__id__)
         return function
 
     @staticmethod
-    def wrapped_member(name, f):
-        @wraps(f)
+    def wrapped_member(member_name, member):
+        @wraps(member)
         def function(self):
-            __id__ = str(uuid.uuid1())
-            message = ProxyEncoder().encode({"get": {"object": self,
-                                                     "member": name,
-                                                     "result": __id__}})
-            Proxy.apply_async(message)
+            __id__ = Proxy.execute_on_server("call", object=self, member=str(member_name))
             return AnonymousProxy(__id__=__id__)
         return property(function)
 
     def __str__(self):
-        __id__ = str(uuid.uuid1())
-        message = ProxyEncoder().encode({"call": {"object": self,
-                                                  "method": "__str__",
-                                                  "result": __id__,
-                                                  "return_result": True}})
-        return Proxy.apply_sync(message)
+        object_id = Proxy.execute_on_server("call", object=self, method="__str__")
+        return Proxy.fetch_from_server(object_id)
 
     def get(self):
-        message = ProxyEncoder().encode({"get": {"object": self}})
-        return Proxy.apply_sync(message)
+        return Proxy.fetch_from_server(self.__id__)
 
     def __getattr__(self, item):
-        if item in {"__getnewargs__", "__getstate__", "__setstate__"}: raise AttributeError
-        return Proxy.wrapped_member(item, lambda:None).fget(self)
+        if item in {"__getnewargs__", "__getstate__", "__setstate__"}:
+            raise AttributeError
+        return Proxy.wrapped_member(item, lambda: None).fget(self)
+
+    @staticmethod
+    def execute_on_server(server_method, **params):
+        message = ProxyEncoder().encode({server_method: params})
+        connection = HTTPConnection(*get_server_address())
+        connection.request("POST", server_method, message,
+                           {"Content-Type": "application/json"})
+        response = connection.getresponse()
+        response_len = int(response.getheader("Content-Length", 0))
+        response_data = response.read(response_len)
+        if response.getheader("Content-Type", "") == "application/octet-stream":
+            return pickle.loads(response_data)
+        else:
+            return response_data.decode('utf-8')
+
+    @staticmethod
+    def fetch_from_server(object_id):
+        connection = HTTPConnection(*get_server_address())
+        connection.request("GET", object_id)
+        response = connection.getresponse()
+        response_len = int(response.getheader("Content-Length", 0))
+        response_data = response.read(response_len)
+        if response.getheader("Content-Type", "") == "application/octet-stream":
+            return pickle.loads(response_data)
+        else:
+            return response_data.decode('utf-8')
 
 
 class AnonymousProxy(Proxy):
     def __getattribute__(self, item):
         if item in {"__id__", "get"}:
             return super().__getattribute__(item)
-        return Proxy.wrapped_function(item, lambda:None)
+        return Proxy.wrapped_function(item, lambda: None)
 
 
-import sys, imp
+import sys
+import imp
 proxies = imp.new_module('proxies')
 sys.modules['proxies'] = proxies
 new_to_old = {}
 old_to_new = {}
 
+excluded_modules = ["Orange.test", "Orange.remote", "Orange.server", "Orange.canvas", "Orange.widgets"]
 for importer, modname, ispkg in pkgutil.walk_packages(path=Orange.__path__, prefix="Orange.", onerror=lambda x: None):
-    if modname.startswith("Orange.test") or modname.startswith("Orange.remote") or modname.startswith("Orange.server"):
+    if any(modname.startswith(excluded_module) for excluded_module in excluded_modules):
         continue
     try:
         module = importlib.import_module(modname)
@@ -143,22 +128,23 @@ for importer, modname, ispkg in pkgutil.walk_packages(path=Orange.__path__, pref
                 class_.__bases__ = tuple([new_to_old.get(b, b) for b in class_.__bases__])
                 members = {"__module__": "proxies",
                            "__originalclass__": class_.__name__,
-                           "__originalmodule__":class_.__module__ }
+                           "__originalmodule__": class_.__module__}
                 for n, f in inspect.getmembers(class_, inspect.isfunction):
-                    if n.startswith("__"): continue
+                    if n.startswith("__"):
+                        continue
                     members[n] = Proxy.wrapped_function(n, f)
 
                 for n, p in inspect.getmembers(class_, inspect.isdatadescriptor):
-                    if n.startswith("__"): continue
+                    if n.startswith("__"):
+                        continue
                     members[n] = Proxy.wrapped_member(n, p)
 
-                newname = '%s_%s'% (class_.__module__.replace(".", "_"), name)
-                new_class = type(newname, (Proxy,), members)
+                new_name = '%s_%s' % (class_.__module__.replace(".", "_"), name)
+                new_class = type(new_name, (Proxy,), members)
                 old_to_new[class_] = new_class
-                setattr(proxies, newname, new_class)
+                setattr(proxies, new_name, new_class)
 
             setattr(module, name, new_class)
             new_to_old[new_class] = class_
     except ImportError as err:
-        warnings.warn("Failed to load module %s: %s"% (modname, err))
-
+        warnings.warn("Failed to load module %s: %s" % (modname, err))
