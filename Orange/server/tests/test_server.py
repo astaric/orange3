@@ -1,5 +1,4 @@
 from http.client import HTTPConnection
-from io import BytesIO
 import pickle
 from socketserver import TCPServer
 import threading

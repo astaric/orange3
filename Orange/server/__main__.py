@@ -1,4 +1,3 @@
-import cgi
 from http.server import BaseHTTPRequestHandler
 import io
 import json
