@@ -111,7 +111,10 @@ class OrangeServer(BaseHTTPRequestHandler):
         if '__jsonclass__' in pairs:
             constructor, param = pairs['__jsonclass__']
             if constructor == "Promise":
-                return cache[param]
+                try:
+                    return cache[param]
+                except:
+                    raise ValueError("Unknown promise '%s'" % param)
 
         return pairs
 
@@ -131,14 +134,20 @@ if __name__ == "__main__":
         format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s',
         datefmt='%m-%d %H:%M')
 
-    PORT = 8000
+    from optparse import OptionParser
+    parser = OptionParser()
+    parser.add_option("-p", "--port", dest="port", default="9465", help="Port number")
+    parser.add_option("--host", dest="hostname", default="127.0.0.1", help="Host name")
+    options, args = parser.parse_args()
 
-    Handler = OrangeServer
+    port = int(options.port)
+    hostname = options.hostname
 
-    httpd = socketserver.TCPServer(("", PORT), Handler)
+    httpd = socketserver.TCPServer((hostname, port), OrangeServer)
 
-    print("serving at port", PORT)
+    print("Starting Orange Server")
+    print("Listening on port", port)
     try:
         httpd.serve_forever()
-    except Exception as ex:
+    except KeyboardInterrupt as ex:
         httpd.server_close()

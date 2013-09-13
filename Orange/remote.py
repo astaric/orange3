@@ -3,6 +3,7 @@ import inspect
 import pkgutil
 import importlib
 import warnings
+import os
 import pickle
 import json
 from functools import wraps
@@ -13,7 +14,13 @@ import Orange
 
 
 def get_server_address():
-    return '127.0.0.1', 8000
+    hostname = os.environ.get('ORANGE_SERVER', "127.0.0.1")
+    if ":" in hostname:
+        hostname, port = hostname.split(":")
+    else:
+        port = 9465
+    return hostname, port
+print("Using Orange Server %s:%s" % get_server_address())
 
 
 class ProxyEncoder(json.JSONEncoder):
