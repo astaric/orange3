@@ -9,6 +9,29 @@ import os
 import numpy as np
 
 
+def wrapped_member(member_name, member):
+    @wraps(member)
+    def function(self):
+        __id__ = execute_on_server("call", object=self, member=str(member_name))
+        return AnonymousProxy(__id__=__id__)
+
+    return property(function)
+
+
+def wrapped_function(function_name, function, synchronous=False):
+    @wraps(function)
+    def function(self, *args, **kwargs):
+        if function_name == "__init__":
+            return
+        __id__ = execute_on_server("call", object=self, method=str(function_name), args=args, kwargs=kwargs)
+        if synchronous:
+            return fetch_from_server(__id__)
+        else:
+            return AnonymousProxy(__id__=__id__)
+
+    return function
+
+
 class ProxyEncoder(json.JSONEncoder):
     def default(self, o):
         if isinstance(o, Proxy):
@@ -86,28 +109,6 @@ def get_server_address():
         port = 9465
     return hostname, port
 
-
-def wrapped_member(member_name, member):
-    @wraps(member)
-    def function(self):
-        __id__ = execute_on_server("call", object=self, member=str(member_name))
-        return AnonymousProxy(__id__=__id__)
-
-    return property(function)
-
-
-def wrapped_function(function_name, function, synchronous=False):
-    @wraps(function)
-    def function(self, *args, **kwargs):
-        if function_name == "__init__":
-            return
-        __id__ = execute_on_server("call", object=self, method=str(function_name), args=args, kwargs=kwargs)
-        if synchronous:
-            return fetch_from_server(__id__)
-        else:
-            return AnonymousProxy(__id__=__id__)
-
-    return function
 
 new_to_old = {}
 
