@@ -69,10 +69,6 @@ class Proxy:
             return AnonymousProxy(__id__=__id__)
         return property(function)
 
-    def __str__(self):
-        object_id = Proxy.execute_on_server("call", object=self, method="__str__")
-        return Proxy.fetch_from_server(object_id)
-
     def get(self):
         return Proxy.fetch_from_server(self.__id__)
 
@@ -141,7 +137,7 @@ for importer, modname, ispkg in pkgutil.walk_packages(path=Orange.__path__, pref
                            "__originalmodule__": class_.__module__}
                 for n, f in inspect.getmembers(class_, inspect.isfunction):
                     synchronous = False
-                    if n in ("__len__",):
+                    if n in ("__len__", "__str__"):
                         synchronous = True
                     elif n.startswith("__"):
                         continue
