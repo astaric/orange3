@@ -49,13 +49,16 @@ class Proxy:
         return self
 
     @staticmethod
-    def wrapped_function(function_name, function):
+    def wrapped_function(function_name, function, synchronous=False):
         @wraps(function)
         def function(self, *args, **kwargs):
             if function_name == "__init__":
                 return
             __id__ = Proxy.execute_on_server("call", object=self, method=str(function_name), args=args, kwargs=kwargs)
-            return AnonymousProxy(__id__=__id__)
+            if synchronous:
+                return Proxy.fetch_from_server(__id__)
+            else:
+                return AnonymousProxy(__id__=__id__)
         return function
 
     @staticmethod
@@ -137,9 +140,12 @@ for importer, modname, ispkg in pkgutil.walk_packages(path=Orange.__path__, pref
                            "__originalclass__": class_.__name__,
                            "__originalmodule__": class_.__module__}
                 for n, f in inspect.getmembers(class_, inspect.isfunction):
-                    if n.startswith("__"):
+                    synchronous = False
+                    if n in ("__len__",):
+                        synchronous = True
+                    elif n.startswith("__"):
                         continue
-                    members[n] = Proxy.wrapped_function(n, f)
+                    members[n] = Proxy.wrapped_function(n, f, synchronous)
 
                 for n, p in inspect.getmembers(class_, inspect.isdatadescriptor):
                     if n.startswith("__"):
