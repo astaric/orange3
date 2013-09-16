@@ -137,7 +137,7 @@ if __name__ == "__main__":
     from optparse import OptionParser
     parser = OptionParser()
     parser.add_option("-p", "--port", dest="port", default="9465", help="Port number")
-    parser.add_option("--host", dest="hostname", default="127.0.0.1", help="Host name")
+    parser.add_option("--host", dest="hostname", default="", help="Host name")
     options, args = parser.parse_args()
 
     port = int(options.port)
