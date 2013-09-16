@@ -114,7 +114,7 @@ new_to_old = {}
 
 
 def create_proxy(name, class_):
-    class_.__bases__ = tuple([new_to_old.get(b, b) for b in class_.__bases__])
+    #class_.__bases__ = tuple([new_to_old.get(b, b) for b in class_.__bases__])
     members = {"__module__": "proxies",
                "__originalclass__": class_.__name__,
                "__originalmodule__": class_.__module__}
