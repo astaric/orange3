@@ -1,6 +1,7 @@
 import base64
 from functools import wraps
 from http.client import HTTPConnection
+import inspect
 import json
 import pickle
 import os
@@ -107,3 +108,29 @@ def wrapped_function(function_name, function, synchronous=False):
             return AnonymousProxy(__id__=__id__)
 
     return function
+
+new_to_old = {}
+
+
+def create_proxy(name, class_):
+    class_.__bases__ = tuple([new_to_old.get(b, b) for b in class_.__bases__])
+    members = {"__module__": "proxies",
+               "__originalclass__": class_.__name__,
+               "__originalmodule__": class_.__module__}
+    for n, f in inspect.getmembers(class_, inspect.isfunction):
+        synchronous = False
+        if n in ("__len__", "__str__"):
+            synchronous = True
+        elif n.startswith("__") and n not in ("__getitem__",):
+            continue
+        members[n] = wrapped_function(n, f, synchronous)
+
+    for n, p in inspect.getmembers(class_, inspect.isdatadescriptor):
+        if n.startswith("__"):
+            continue
+        members[n] = wrapped_member(n, p)
+
+    new_name = '%s_%s' % (class_.__module__.replace(".", "_"), name)
+    new_class = type(new_name, (Proxy,), members)
+    new_to_old[new_class] = class_
+    return new_name, new_class
