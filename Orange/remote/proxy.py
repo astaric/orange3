@@ -7,6 +7,7 @@ import pickle
 import os
 
 import numpy as np
+from Orange.server.__main__ import ExecutionFailedError
 
 
 def wrapped_member(member_name, member):
@@ -82,9 +83,11 @@ def fetch_from_server(object_id):
     response_len = int(response.getheader("Content-Length", 0))
     response_data = response.read(response_len)
     if response.getheader("Content-Type", "") == "application/octet-stream":
-        return pickle.loads(response_data)
+        result = pickle.loads(response_data)
     else:
-        return response_data.decode('utf-8')
+        result = response_data.decode('utf-8')
+    if isinstance(result, ExecutionFailedError):
+        raise result
 
 
 def execute_on_server(server_method, **params):

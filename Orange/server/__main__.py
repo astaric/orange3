@@ -32,7 +32,9 @@ class Proxy:
 
 
 class ExecutionFailedError(Exception):
-    def __init__(self, command, error):
+    def __init__(self, command=None, error=None):
+        if not command or not error:
+            return
         self.message = "Execution of {} failed with error: {}".format(command, error)
         self.traceback = traceback.format_exc()
         super().__init__(self.message)

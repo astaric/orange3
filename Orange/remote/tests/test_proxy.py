@@ -55,6 +55,13 @@ class OrangeServerTests(unittest.TestCase):
         for x in proxy_instance:
             self.assertEqual("a", x.get())
 
+    def test_raises_exception_when_remote_execution_fails(self):
+        name, proxy = create_proxy("int", int)
+
+        proxy_instance = proxy("a")
+
+        self.assertRaises(orange_server.ExecutionFailedError, proxy_instance.get)
+
 
 class DummyClass:
     def a(self):
