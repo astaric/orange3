@@ -4,6 +4,7 @@ from socketserver import TCPServer
 import threading
 import unittest
 from Orange.server import __main__ as orange_server
+from Orange.server.__main__ import ExecutionFailedError
 
 
 class OrangeServerTests(unittest.TestCase):
@@ -82,7 +83,7 @@ class OrangeServerTests(unittest.TestCase):
 
         self.assertEqual(response.status, 400)
 
-    def test_create_returns_500_on_exception(self):
+    def test_create_stores_exception_if_execution_fails(self):
         self.server_connection.request(
             "POST", "/create",
             """{"create": {"module": "builtins",
@@ -91,7 +92,10 @@ class OrangeServerTests(unittest.TestCase):
             {"Content-Type": "application/json"})
         response = self.server_connection.getresponse()
 
-        self.assertEqual(response.status, 500)
+        self.assertEqual(response.status, 200)
+        object_id = self.read_data(response)
+        self.assertIsInstance(orange_server.cache[object_id], ExecutionFailedError)
+        print(orange_server.cache[object_id].traceback)
 
     def test_call_adds_objects_to_cache(self):
         orange_server.cache["x"] = []

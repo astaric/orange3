@@ -5,6 +5,7 @@ import pickle
 import logging
 import shutil
 import socketserver
+import traceback
 
 from Orange.server.commands import Create, Call, Get, Command
 import uuid
@@ -31,7 +32,10 @@ class Proxy:
 
 
 class ExecutionFailedError(Exception):
-    pass
+    def __init__(self, command, error):
+        self.message = "Execution of {} failed with error: {}".format(command, error)
+        self.traceback = traceback.format_exc()
+        super().__init__(self.message)
 
 
 class OrangeServer(BaseHTTPRequestHandler):
@@ -61,7 +65,10 @@ class OrangeServer(BaseHTTPRequestHandler):
         try:
             data = self.parse_post_data()
             if isinstance(data, Command):
-                result = self.execute_command(data)
+                try:
+                    result = self.execute_command(data)
+                except ExecutionFailedError as err:
+                    result = err
                 cache[result_id] = result
             else:
                 cache[result_id] = data
@@ -123,9 +130,7 @@ class OrangeServer(BaseHTTPRequestHandler):
         try:
             return command.execute()
         except Exception as err:
-            raise ExecutionFailedError(
-                "Execution of {} failed with error: {}"
-                .format(command, err)) from err
+            raise ExecutionFailedError(command, err)
 
 
 if __name__ == "__main__":
