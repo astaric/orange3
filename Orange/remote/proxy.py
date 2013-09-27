@@ -69,6 +69,11 @@ class Proxy:
             raise AttributeError
         return wrapped_member(item, lambda: None).fget(self)
 
+    def __iter__(self):
+        for i in range(len(self)):
+            yield self[i]
+
+
 
 class AnonymousProxy(Proxy):
     def __getattribute__(self, item):
