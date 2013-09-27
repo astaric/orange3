@@ -5,7 +5,7 @@ import inspect
 import json
 import pickle
 import os
-import urllib
+import urllib.request
 
 import numpy as np
 from Orange.server.commands import ExecutionFailedError
@@ -105,7 +105,7 @@ def execute_on_server(uri, **params):
     server_method = uri.split('/', 1)[0]
     message = ProxyEncoder().encode({server_method: params})
     connection = HTTPConnection(*get_server_address())
-    connection.request("POST", uri, message,
+    connection.request("POST", urllib.request.pathname2url(uri), message,
                        {"Content-Type": "application/json"})
     response = connection.getresponse()
     response_len = int(response.getheader("Content-Length", 0))
