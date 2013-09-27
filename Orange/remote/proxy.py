@@ -13,7 +13,7 @@ from Orange.server.__main__ import ExecutionFailedError
 def wrapped_member(member_name, member):
     @wraps(member)
     def function(self):
-        __id__ = execute_on_server("call", object=self, member=str(member_name))
+        __id__ = execute_on_server("call/%s.%s" % (self.__id__, member_name), object=self, member=str(member_name))
         return AnonymousProxy(__id__=__id__)
 
     return property(function)
@@ -24,7 +24,10 @@ def wrapped_function(function_name, function, synchronous=False):
     def function(self, *args, **kwargs):
         if function_name == "__init__":
             return
-        __id__ = execute_on_server("call", object=self, method=str(function_name), args=args, kwargs=kwargs)
+        __id__ = execute_on_server("call/%s.%s(%s%s)" % (self.__id__,
+                                                         str(function_name),
+                                                         ",".join(map(str, args)), ""),
+                                   object=self, method=str(function_name), args=args, kwargs=kwargs)
         if synchronous:
             return fetch_from_server(__id__)
         else:
@@ -90,10 +93,11 @@ def fetch_from_server(object_id):
         raise result
 
 
-def execute_on_server(server_method, **params):
+def execute_on_server(uri, **params):
+    server_method = uri.split('/', 1)[0]
     message = ProxyEncoder().encode({server_method: params})
     connection = HTTPConnection(*get_server_address())
-    connection.request("POST", server_method, message,
+    connection.request("POST", uri, message,
                        {"Content-Type": "application/json"})
     response = connection.getresponse()
     response_len = int(response.getheader("Content-Length", 0))
