@@ -1,15 +1,18 @@
 from http.client import HTTPConnection
+import logging
 import os
 from socketserver import TCPServer
 import threading
 import unittest
 from Orange.remote import create_proxy, Proxy
+from Orange.remote.tests.dummies import DummyIterable, DummyClass
 
 import Orange.server.__main__ as orange_server
+from Orange.server.commands import ExecutionFailedError
 
 
 class OrangeServerTests(unittest.TestCase):
-    server = server_thread = None
+    server = server_thread = worker = worker_thread = None
 
     @classmethod
     def setUpClass(cls):
@@ -20,11 +23,20 @@ class OrangeServerTests(unittest.TestCase):
             kwargs={'poll_interval': 0.01}
         )
         cls.server_thread.start()
+        cls.worker = orange_server.CommandProcessor()
+        cls.worker_thread = threading.Thread(
+            name='Processing thread',
+            target=cls.worker.run,
+            kwargs={'poll_interval': 0.01}
+        )
+        cls.worker_thread.start()
 
     @classmethod
     def tearDownClass(cls):
         cls.server.shutdown()
         cls.server_thread.join()
+        cls.worker.shutdown()
+        cls.worker_thread.join()
         cls.server.server_close()
 
     def setUp(self):
@@ -45,13 +57,16 @@ class OrangeServerTests(unittest.TestCase):
         self.assertIsInstance(proxy_instance.b, Proxy)
 
     def test_can_proxy_iterable(self):
+        FORMAT = '%(asctime)-15s %(clientip)s %(user)-8s %(message)s'
+        logging.basicConfig(format=FORMAT)
         name, proxy = create_proxy("DummyIterable", DummyIterable)
 
         proxy_instance = proxy(["a"])
 
         self.assertEqual(len(proxy_instance), 1)
+        self.assertEqual(len(proxy_instance), 1)
+        self.assertEqual(len(proxy_instance), 1)
         self.assertEqual(proxy_instance[0].get(), "a")
-        print(proxy_instance)
         for x in proxy_instance:
             self.assertEqual("a", x.get())
 
@@ -60,37 +75,7 @@ class OrangeServerTests(unittest.TestCase):
 
         proxy_instance = proxy("a")
 
-        self.assertRaises(orange_server.ExecutionFailedError, proxy_instance.get)
-
-
-class DummyClass:
-    def a(self):
-        return "a"
-
-    b = "b"
-
-    def __str__(self):
-        return "test"
-
-
-class DummyIterable:
-    members = ["a"]
-
-    def __init__(self, members):
-        self.members = members
-
-    def __len__(self):
-        return len(self.members)
-
-    def __getitem__(self, item):
-        return self.members[item]
-
-    def __iter__(self):
-        for x in self.members:
-            yield x
-
-    def __str__(self):
-        return str(self.members)
+        self.assertRaises(ExecutionFailedError, proxy_instance.get)
 
 
 if __name__ == '__main__':

@@ -5,9 +5,10 @@ import inspect
 import json
 import pickle
 import os
+import urllib
 
 import numpy as np
-from Orange.server.__main__ import ExecutionFailedError
+from Orange.server.commands import ExecutionFailedError
 
 
 def wrapped_member(member_name, member):
@@ -96,6 +97,8 @@ def fetch_from_server(object_id):
         result = response_data.decode('utf-8')
     if isinstance(result, ExecutionFailedError):
         raise result
+    else:
+        return result
 
 
 def execute_on_server(uri, **params):

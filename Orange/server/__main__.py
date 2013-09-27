@@ -1,43 +1,34 @@
 from http.server import BaseHTTPRequestHandler
 import io
 import json
+import multiprocessing
 import pickle
 import logging
+import queue
 import shutil
 import socketserver
+import threading
 import traceback
 
-from Orange.server.commands import Create, Call, Get, Command
+from Orange.server.commands import Create, Call, Get, Command, execute_command, Promise
 import uuid
 
-cache = {}
+class Cache(dict):
+    events = {}
 
+logger = logging.getLogger("orange_server")
 
-class Promise:
-    def __init__(self, id):
-        self.id = id
+cache = Cache()
+execution_pool = multiprocessing.Pool()
+execution_queue = queue.Queue()
 
-    def get(self, id):
-        return cache[id]
-
-    def ready(self, id):
-        return id in cache
-
+Promise.__cache__ = cache
 
 class Proxy:
     __id__ = None
 
     def __init__(self, id):
         self.__id__ = id
-
-
-class ExecutionFailedError(Exception):
-    def __init__(self, command=None, error=None):
-        if not command or not error:
-            return
-        self.message = "Execution of {} failed with error: {}".format(command, error)
-        self.traceback = traceback.format_exc()
-        super().__init__(self.message)
 
 
 class OrangeServer(BaseHTTPRequestHandler):
@@ -47,6 +38,8 @@ class OrangeServer(BaseHTTPRequestHandler):
     def do_GET(self):
         resource_id = self.path.strip("/")
 
+        if resource_id in cache.events:
+            cache.events[resource_id].wait()
         if resource_id not in cache:
             return self.send_error(404, "Resource {} not found".format(resource_id))
 
@@ -67,17 +60,12 @@ class OrangeServer(BaseHTTPRequestHandler):
         try:
             data = self.parse_post_data()
             if isinstance(data, Command):
-                try:
-                    result = self.execute_command(data)
-                except ExecutionFailedError as err:
-                    result = err
-                cache[result_id] = result
+                cache.events[result_id] = threading.Event()
+                execution_queue.put((result_id, data))
             else:
                 cache[result_id] = data
         except AttributeError as err:
             return self.send_error(400, str(err))
-        except ExecutionFailedError as err:
-            return self.send_error(500, str(err))
         except ValueError as err:
             return self.send_error(400, str(err))
 
@@ -121,18 +109,33 @@ class OrangeServer(BaseHTTPRequestHandler):
             constructor, param = pairs['__jsonclass__']
             if constructor == "Promise":
                 try:
-                    return cache[param]
+                    if param in cache:
+                        return cache[param]
+                    elif param in cache.events:
+                        return Promise(param)
                 except:
                     raise ValueError("Unknown promise '%s'" % param)
 
         return pairs
 
-    @staticmethod
-    def execute_command(command):
-        try:
-            return command.execute()
-        except Exception as err:
-            raise ExecutionFailedError(command, err)
+
+class CommandProcessor:
+    def __init__(self):
+        self._is_running = True
+
+    def run(self, poll_interval=1):
+        while self._is_running:
+            try:
+                result_id, command = execution_queue.get(block=True, timeout=poll_interval)
+                command.resolve_promises()
+                cache[result_id] = execution_pool.apply(execute_command, [command])
+                cache.events[result_id].set()
+            except queue.Empty:
+                continue
+
+
+    def shutdown(self):
+        self._is_running = False
 
 
 if __name__ == "__main__":
@@ -151,10 +154,22 @@ if __name__ == "__main__":
     hostname = options.hostname
 
     httpd = socketserver.TCPServer((hostname, port), OrangeServer)
+    worker = CommandProcessor()
+    worker_thread = threading.Thread(
+        name='Processing queue',
+        target=worker.run,
+        kwargs={'poll_interval': 0.01}
+    )
+    worker_thread.start()
 
     print("Starting Orange Server")
     print("Listening on port", port)
+
     try:
         httpd.serve_forever()
     except KeyboardInterrupt as ex:
         httpd.server_close()
+    finally:
+        worker.shutdown()
+        worker_thread.join()
+
