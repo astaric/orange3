@@ -115,6 +115,8 @@ class OrangeServer(BaseHTTPRequestHandler):
                         return Promise(param)
                 except:
                     raise ValueError("Unknown promise '%s'" % param)
+            elif constructor == "slice":
+                return slice(*param)
 
         return pairs
 

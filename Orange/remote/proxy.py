@@ -39,6 +39,8 @@ def wrapped_function(function_name, function, synchronous=False):
 
 class ProxyEncoder(json.JSONEncoder):
     def default(self, o):
+        if isinstance(o, slice):
+            return {"__jsonclass__": ('slice', (o.start, o.stop, o.step))}
         if isinstance(o, Proxy):
             return {"__jsonclass__": ('Promise', o.__id__)}
         if isinstance(o, np.ndarray):
