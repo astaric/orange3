@@ -9,6 +9,7 @@ import shutil
 import socketserver
 import threading
 import traceback
+import signal
 
 from Orange.server.commands import Create, Call, Get, Command, execute_command, Promise
 import uuid
@@ -19,8 +20,6 @@ class Cache(dict):
 logger = logging.getLogger("orange_server")
 
 cache = Cache()
-execution_pool = multiprocessing.Pool()
-execution_queue = queue.Queue()
 
 Promise.__cache__ = cache
 
@@ -61,7 +60,7 @@ class OrangeServer(BaseHTTPRequestHandler):
             data = self.parse_post_data()
             if isinstance(data, Command):
                 cache.events[result_id] = threading.Event()
-                execution_queue.put((result_id, data))
+                self.command_processor.queue((result_id, data))
             else:
                 cache[result_id] = data
         except AttributeError as err:
@@ -122,21 +121,35 @@ class OrangeServer(BaseHTTPRequestHandler):
 
 
 class CommandProcessor:
+    logger = logging.getLogger("worker")
+    _execution_queue = queue.Queue()
+
     def __init__(self):
         self._is_running = True
 
     def run(self, poll_interval=1):
+        self.logger.info("Worker started")
+        execution_pool = multiprocessing.Pool()
+
         while self._is_running:
             try:
-                result_id, command = execution_queue.get(block=True, timeout=poll_interval)
+                result_id, command = self._execution_queue.get(block=True, timeout=poll_interval)
+                logger.info("Received command")
                 command.resolve_promises()
                 cache[result_id] = execution_pool.apply(execute_command, [command])
                 cache.events[result_id].set()
             except queue.Empty:
                 continue
 
+        execution_pool.close()
+        self.logger.info("Worker shutdown")
+
+    @classmethod
+    def queue(cls, command):
+        cls._execution_queue.put(command)
 
     def shutdown(self):
+        self.logger.info("Received a shutdown request")
         self._is_running = False
 
 
@@ -160,18 +173,27 @@ if __name__ == "__main__":
     worker_thread = threading.Thread(
         name='Processing queue',
         target=worker.run,
-        kwargs={'poll_interval': 0.01}
+        kwargs={'poll_interval': 1}
     )
+    server_thread = threading.Thread(
+        name='HTTP Server',
+        target=httpd.serve_forever,
+        kwargs={'poll_interval': 1}
+    )
+
+    def shutdown(signal, frame):
+        if threading.current_thread().name != 'MainThread':
+            return
+        logging.info("Received a shutdown request")
+        worker.shutdown()
+        httpd.shutdown()
+        server_thread.join()
+        worker_thread.join()
+    signal.signal(signal.SIGINT, shutdown)
+
+    server_thread.start()
     worker_thread.start()
 
     print("Starting Orange Server")
     print("Listening on port", port)
-
-    try:
-        httpd.serve_forever()
-    except KeyboardInterrupt as ex:
-        httpd.server_close()
-    finally:
-        worker.shutdown()
-        worker_thread.join()
 
