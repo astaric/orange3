@@ -60,7 +60,7 @@ class OrangeServer(BaseHTTPRequestHandler):
             data = self.parse_post_data()
             if isinstance(data, Command):
                 cache.events[result_id] = threading.Event()
-                self.command_processor.queue((result_id, data))
+                CommandProcessor.queue((result_id, data))
             else:
                 cache[result_id] = data
         except AttributeError as err:
