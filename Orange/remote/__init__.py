@@ -23,6 +23,13 @@ def replace_orange_with_proxies():
             continue
         try:
             module = importlib.import_module(modname)
+
+            new_module = globals()
+            for part in modname.lstrip("Orange.").split("."):
+                if part not in new_module:
+                    new_module[part] = imp.new_module(part)
+                    new_module = new_module[part]
+
             for name, class_ in inspect.getmembers(module, inspect.isclass):
                 if not class_.__module__.startswith("Orange"):
                     continue
@@ -34,13 +41,18 @@ def replace_orange_with_proxies():
                     old_to_new[class_] = new_class
                     setattr(proxies, new_name, new_class)
 
-                setattr(module, name, new_class)
+                if new_module is globals():
+                    new_module[name] = new_class
+                else:
+                    setattr(new_module, name, new_class)
 
         except ImportError as err:
-            warnings.warn("Failed to load module %s: %s" % (modname, err))
+            import sys
+            sys.stderr.write("Failed to load module %s: %s\n" % (modname, err))
 
 
 replace_orange_with_proxies()
 
+del Orange
 
 print("Using Orange Server %s:%s" % get_server_address())
