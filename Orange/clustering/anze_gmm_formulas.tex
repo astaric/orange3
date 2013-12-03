@@ -1,0 +1,42 @@
+\documentclass[10pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage{graphicx}
+\usepackage{marginnote}
+
+\begin{document}
+\section{Definition}
+\marginnote{TODO: definicija preisana iz enega clanka, povzemi po svoje}
+A Gaussian mixture model (GMM) is a parametric statistical model that assumes that the data originates from a weighted sum of several Gaussian sources. More formally, a GMM is given by
+$p(x|\Theta) = \sum^M_{l=1}\alpha_lp(x|\theta_l)$, where $\alpha_l$ denotes the weight of each Gaussian, $\theta_l$ its respective parameters and  $M$ denotes the number of Gaussian sources in GMM. EM is a widely used method for estimating parameter set of the model ($\Theta$) using unlabeled data~\cite{dempster77}.
+
+Our method performs one iteration of the EM algorithm in multiple consecutive steps, where each step updates one component of the parameters based on the subset of the data.
+
+\section{Our method}
+Let
+$p(x) = \sum_{l=1}^M\alpha_lp(x|\theta_l)$ denote our GMM. Each 
+$p(x|\theta_l)$ term is a Gaussian parametrized by $\theta_l = (\mu_l, \Sigma_l)$ with a mixing coefficient of $\alpha_l$. Let {\bf X} denote data points, {\bf X}$ = \{x_i\}_{i=1}^N$, each with $dim$ dimensions.
+
+In order to draw clusters on the parallel coordinates plot, we need GMM parameters for each of the data dimensions. Estimating GMM for {\bf X}, we get $dim$-dimensional $\mu_l$ and $\Sigma_l$, where each dimensions corresponds to the cluster parameters for the respective data feature. 
+
+
+
+
+
+As we will project the Gaussians to each of the dimensions, we can safely assume that the covariance matrices are diagonal.
+
+
+
+
+
+
+
+\begin{thebibliography}{9}
+
+\bibitem{dempster77}
+  A. P. Dempster, N.M. Laird, and D.B. Rubin.
+  \emph{Maximum likelihood from incomplete data via the EM algorithm}.
+  JRSSB, 39:1-38,
+  1997
+\end{thebibliography}
+
+\end{document}
