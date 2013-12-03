@@ -198,11 +198,12 @@ class OWParallelGraph(OWPlot, ScaleData):
             mins.append(self.domain_data_stat[i].min)
 
         for j, (phi, cluster_mus, cluster_sigma) in enumerate(zip(phis, mus, sigmas)):
-            for i, (mu1, sigma1, mu2, sigma2), in enumerate(zip(cluster_mus, cluster_sigma, cluster_mus[1:], cluster_sigma[1:])):
+            for i, (mu1, sigma1, mu2, sigma2), in enumerate(
+                    zip(cluster_mus, cluster_sigma, cluster_mus[1:], cluster_sigma[1:])):
                 nmu1 = (mu1 - mins[i]) / diff[i]
-                nmu2 = (mu2 - mins[i+1]) / diff[i+1]
+                nmu2 = (mu2 - mins[i + 1]) / diff[i + 1]
                 nsigma1 = math.sqrt(sigma1) / diff[i]
-                nsigma2 = math.sqrt(sigma2) / diff[i+1]
+                nsigma2 = math.sqrt(sigma2) / diff[i + 1]
 
                 polygon = ParallelCoordinatePolygon(i, nmu1, nmu2, nsigma1, nsigma2, phi,
                                                     self.discPalette.getRGB(j))
@@ -213,6 +214,7 @@ class OWParallelGraph(OWPlot, ScaleData):
     def compute_groups(self):
         if not self.groups or self.groups[0] != self.attributes:
             from Orange.clustering import anze_gmm
+
             X = self.original_data[self.attribute_indices].T
             w, mu, sigma, phi = anze_gmm.em(X, 5)
             self.groups = self.attributes, phi, mu, sigma
@@ -586,22 +588,22 @@ class ParallelCoordinatePolygon(OWPlotItem):
         self.phi = phi
 
         self.twosigmapolygon = QPolygonF([
-            QPointF(i, mu1-sigma1), QPointF(i, mu1+sigma1),
-            QPointF(i+1, mu2+sigma2), QPointF(i+1, mu2-sigma2),
-            QPointF(i, mu1-sigma1)
+            QPointF(i, mu1 - sigma1), QPointF(i, mu1 + sigma1),
+            QPointF(i + 1, mu2 + sigma2), QPointF(i + 1, mu2 - sigma2),
+            QPointF(i, mu1 - sigma1)
         ])
 
         self.sigmapolygon = QPolygonF([
-            QPointF(i, mu1-.5*sigma1), QPointF(i, mu1+.5*sigma1),
-            QPointF(i+1, mu2+.5*sigma2), QPointF(i+1, mu2-.5*sigma2),
-            QPointF(i, mu1-.5*sigma1)
+            QPointF(i, mu1 - .5 * sigma1), QPointF(i, mu1 + .5 * sigma1),
+            QPointF(i + 1, mu2 + .5 * sigma2), QPointF(i + 1, mu2 - .5 * sigma2),
+            QPointF(i, mu1 - .5 * sigma1)
         ])
 
         if isinstance(color, tuple):
             color = QColor(*color)
         color.setAlphaF(.3)
         self.outer_box.setBrush(color)
-        self.outer_box.setPen(QColor(0,0,0,0))
+        self.outer_box.setPen(QColor(0, 0, 0, 0))
         self.inner_box.setBrush(color)
         self.inner_box.setPen(color)
 
