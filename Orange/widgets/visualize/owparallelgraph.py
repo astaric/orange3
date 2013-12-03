@@ -9,16 +9,15 @@ import math
 import numpy as np
 
 from PyQt4.QtCore import QLineF, Qt, QEvent, QRect, QPoint, QPointF
-from PyQt4.QtGui import QGraphicsPathItem, QPixmap, QColor, QBrush, QPen, QToolTip, QPainterPath
+from PyQt4.QtGui import QGraphicsPathItem, QPixmap, QColor, QBrush, QPen, QToolTip, QPainterPath, QPolygonF, QGraphicsPolygonItem
 
 from Orange.canvas.utils import environ
 
 from Orange.statistics.contingency import get_contingencies, get_contingency
-from Orange.statistics.distribution import get_distribution
 from Orange.widgets.settings import SettingProvider, Setting
 from Orange.data import Variable, ContinuousVariable, DiscreteVariable
 from Orange.widgets.utils.plot import OWPlot, UserAxis, AxisStart, AxisEnd, OWCurve, OWPoint, PolygonCurve, \
-    xBottom, yLeft
+    xBottom, yLeft, OWPlotItem
 from Orange.widgets.utils.scaling import get_variable_values_sorted, ScaleData
 
 NO_STATISTICS = 0
@@ -34,6 +33,8 @@ class OWParallelGraph(OWPlot, ScaleData):
     show_distributions = Setting(False)
     show_attr_values = Setting(True)
     show_statistics = Setting(default=False)
+
+    group_lines = Setting(default=False)
 
     use_splines = Setting(False)
     alpha_value = Setting(150)
@@ -57,6 +58,7 @@ class OWParallelGraph(OWPlot, ScaleData):
         self.visualized_mid_labels = []
         self.attribute_indices = []
         self.valid_data = []
+        self.groups = None
 
         self.selected_examples = []
         self.unselected_examples = []
@@ -67,6 +69,7 @@ class OWParallelGraph(OWPlot, ScaleData):
         OWPlot.setData(self, data)
         ScaleData.set_data(self, data, subset_data, **args)
         self.domain_contingencies = None
+        self.groups = None
 
     def update_data(self, attributes, mid_labels=None):
         old_selection_conditions = self.selection_conditions
@@ -95,7 +98,10 @@ class OWParallelGraph(OWPlot, ScaleData):
         if self.data_has_discrete_class:
             self.discrete_palette.set_number_of_colors(len(self.data_domain.class_var.values))
 
-        self.draw_curves()
+        if self.group_lines:
+            self.draw_groups()
+        else:
+            self.draw_curves()
         self.draw_distributions()
         self.draw_axes()
         self.draw_statistics()
@@ -182,6 +188,35 @@ class OWParallelGraph(OWPlot, ScaleData):
             curve.set_segment_length(n_attr)
             curve.set_data(x_values, y_values)
             curve.attach(self)
+
+    def draw_groups(self):
+        phis, mus, sigmas = self.compute_groups()
+
+        diff, mins = [], []
+        for i in range(len(self.domain_data_stat.stats)):
+            diff.append(self.domain_data_stat[i].max - self.domain_data_stat[i].min or 1)
+            mins.append(self.domain_data_stat[i].min)
+
+        for j, (phi, cluster_mus, cluster_sigma) in enumerate(zip(phis, mus, sigmas)):
+            for i, (mu1, sigma1, mu2, sigma2), in enumerate(zip(cluster_mus, cluster_sigma, cluster_mus[1:], cluster_sigma[1:])):
+                nmu1 = (mu1 - mins[i]) / diff[i]
+                nmu2 = (mu2 - mins[i+1]) / diff[i+1]
+                nsigma1 = math.sqrt(sigma1) / diff[i]
+                nsigma2 = math.sqrt(sigma2) / diff[i+1]
+
+                polygon = ParallelCoordinatePolygon(i, nmu1, nmu2, nsigma1, nsigma2, phi,
+                                                    self.discPalette.getRGB(j))
+                polygon.attach(self)
+
+        self.replot()
+
+    def compute_groups(self):
+        if not self.groups or self.groups[0] != self.attributes:
+            from Orange.clustering import anze_gmm
+            X = self.original_data[self.attribute_indices].T
+            w, mu, sigma, phi = anze_gmm.em(X, 5)
+            self.groups = self.attributes, phi, mu, sigma
+        return self.groups[1:]
 
     def draw_legend(self):
         if self.data_has_class:
@@ -535,3 +570,41 @@ class ParallelCoordinatesCurve(OWCurve):
         self.path.moveTo(x, y)
         for x, y in segment[1:]:
             self.path.lineTo(x, y)
+
+
+class ParallelCoordinatePolygon(OWPlotItem):
+    def __init__(self, i, mu1, mu2, sigma1, sigma2, phi, color):
+        OWPlotItem.__init__(self)
+        self.outer_box = QGraphicsPolygonItem(self)
+        self.inner_box = QGraphicsPolygonItem(self)
+
+        self.i = i
+        self.mu1 = mu1
+        self.mu2 = mu2
+        self.sigma1 = sigma1
+        self.sigma2 = sigma2
+        self.phi = phi
+
+        self.twosigmapolygon = QPolygonF([
+            QPointF(i, mu1-sigma1), QPointF(i, mu1+sigma1),
+            QPointF(i+1, mu2+sigma2), QPointF(i+1, mu2-sigma2),
+            QPointF(i, mu1-sigma1)
+        ])
+
+        self.sigmapolygon = QPolygonF([
+            QPointF(i, mu1-.5*sigma1), QPointF(i, mu1+.5*sigma1),
+            QPointF(i+1, mu2+.5*sigma2), QPointF(i+1, mu2-.5*sigma2),
+            QPointF(i, mu1-.5*sigma1)
+        ])
+
+        if isinstance(color, tuple):
+            color = QColor(*color)
+        color.setAlphaF(.3)
+        self.outer_box.setBrush(color)
+        self.outer_box.setPen(QColor(0,0,0,0))
+        self.inner_box.setBrush(color)
+        self.inner_box.setPen(color)
+
+    def update_properties(self):
+        self.outer_box.setPolygon(self.graph_transform().map(self.twosigmapolygon))
+        self.inner_box.setPolygon(self.graph_transform().map(self.sigmapolygon))

@@ -85,6 +85,7 @@ class OWParallelCoordinates(OWVisWidget):
         self.add_visual_settings(self.settings_tab)
         self.add_annotation_settings(self.settings_tab)
         self.add_color_settings(self.settings_tab)
+        self.add_group_settings(self.settings_tab)
 
         self.settings_tab.layout().addStretch(100)
         self.icons = attributeIconDict
@@ -120,6 +121,11 @@ class OWParallelCoordinates(OWVisWidget):
         gui.button(box, self, "Set colors", self.select_colors,
                    tooltip="Set the canvas background color and color palette for coloring continuous variables")
 
+    def add_group_settings(self, parent):
+        box = gui.widgetBox(parent, "Colors", orientation="horizontal")
+        gui.checkBox(box, self, "graph.group_lines", "Group Lines", tooltip="Show clusters instead of lines",
+                     callback=self.update_graph)
+
     def flip_attribute(self, item):
         if self.graph.flip_attribute(str(item.text())):
             self.update_graph()
@@ -152,7 +158,7 @@ class OWParallelCoordinates(OWVisWidget):
         if data and (len(data) == 0 or len(data.domain) == 0):
             data = None
         if checksum(data) == checksum(self.data):
-            return  # check if the new data set is the same as the old one
+            return # check if the new data set is the same as the old one
 
         self.__ignore_updates = True
         self.closeContext()
@@ -171,6 +177,7 @@ class OWParallelCoordinates(OWVisWidget):
     # attribute selection signal - list of attributes to show
     def set_shown_attributes(self, shown_attributes):
         self.new_shown_attributes = shown_attributes
+
     new_shown_attributes = None
 
     # this is called by OWBaseWidget after setData and setSubsetData are called. this way the graph is updated only once

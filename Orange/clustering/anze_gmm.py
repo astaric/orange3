@@ -43,6 +43,8 @@ def em(X, k):
                 xn = x[:, active_dim] - mu
                 sigma = np.sum(xn ** 2 * w[j], axis=0) / n[j]
 
+                if np.isnan(mu).any() or np.isnan(sigma).any():
+                    return w, means, covars, priors
                 means[j, l] = mu
                 covars[j, l] = sigma
 
