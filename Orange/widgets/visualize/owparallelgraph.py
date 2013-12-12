@@ -35,6 +35,8 @@ class OWParallelGraph(OWPlot, ScaleData):
     show_statistics = Setting(default=False)
 
     group_lines = Setting(default=False)
+    number_of_groups = Setting(default=5)
+    number_of_steps = Setting(default=30)
 
     use_splines = Setting(False)
     alpha_value = Setting(150)
@@ -99,9 +101,11 @@ class OWParallelGraph(OWPlot, ScaleData):
             self.discrete_palette.set_number_of_colors(len(self.data_domain.class_var.values))
 
         if self.group_lines:
+            self.show_statistics = False
             self.draw_groups()
         else:
-            self.draw_curves()
+            self.show_statistics = True
+            #self.draw_curves()
         self.draw_distributions()
         self.draw_axes()
         self.draw_statistics()
@@ -206,18 +210,20 @@ class OWParallelGraph(OWPlot, ScaleData):
                 nsigma2 = math.sqrt(sigma2) / diff[i + 1]
 
                 polygon = ParallelCoordinatePolygon(i, nmu1, nmu2, nsigma1, nsigma2, phi,
-                                                    self.discPalette.getRGB(j))
+                                                    self.discrete_palette.getRGB(j))
                 polygon.attach(self)
 
         self.replot()
 
     def compute_groups(self):
-        if not self.groups or self.groups[0] != self.attributes:
+        if not self.groups or self.groups[0] != (self.attributes, self.number_of_groups, self.number_of_steps):
             from Orange.clustering import anze_gmm
 
             X = self.original_data[self.attribute_indices].T
-            w, mu, sigma, phi = anze_gmm.em(X, 5)
-            self.groups = self.attributes, phi, mu, sigma
+            w, mu, sigma, phi = anze_gmm.em(X, self.number_of_groups, self.number_of_steps)
+            Y = np.argmax(w, axis=0)
+            print([(Y == j).sum() for j in range(self.number_of_groups)])
+            self.groups = (self.attributes, self.number_of_groups, self.number_of_steps), phi, mu, sigma
         return self.groups[1:]
 
     def draw_legend(self):

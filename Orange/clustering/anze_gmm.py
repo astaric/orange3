@@ -3,7 +3,7 @@ import numpy as np
 from numpy import dot, exp, ones
 
 
-def em(X, k):
+def em(X, k, nsteps=30):
     """
     k expected classes,
     m data points,
@@ -18,7 +18,7 @@ def em(X, k):
     covars = ones((k, dim)) * 10000
     w = np.empty((k, m))
 
-    for i in range(1, 31):
+    for i in range(1, nsteps+1):
         print("Step ", i)
         for l in range(X.shape[1]):
             dims = slice(l-1 if l > 0 else None, l+2 if l < dim - 1 else None)
@@ -30,7 +30,7 @@ def em(X, k):
                 det = covars[j, dims].prod()
                 inv_covars = 1. / covars[j, dims]
                 xn = x - means[j, dims]
-                factor = (2.0 * np.pi) ** (x.shape[0] / 2.0) * det ** 0.5
+                factor = (2.0 * np.pi) ** (x.shape[1] / 2.0) * det ** 0.5
                 w[j] = priors[j] * exp(-.5 * np.sum(xn * inv_covars * xn, axis=1)) / factor
             w /= w.sum(axis=0)
 
@@ -53,7 +53,7 @@ def em(X, k):
         det = covars[j].prod()
         inv_covars = 1. / covars[j]
         xn = X - means[j]
-        factor = (2.0 * np.pi) ** (xn.shape[0] / 2.0) * det ** 0.5
+        factor = (2.0 * np.pi) ** (xn.shape[1] / 2.0) * det ** 0.5
         w[j] = priors[j] * exp(-.5 * np.sum(xn * inv_covars * xn, axis=1)) / factor
         w /= w.sum(axis=0)
 

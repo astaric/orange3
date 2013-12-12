@@ -122,9 +122,15 @@ class OWParallelCoordinates(OWVisWidget):
                    tooltip="Set the canvas background color and color palette for coloring continuous variables")
 
     def add_group_settings(self, parent):
-        box = gui.widgetBox(parent, "Colors", orientation="horizontal")
-        gui.checkBox(box, self, "graph.group_lines", "Group Lines", tooltip="Show clusters instead of lines",
+        box = gui.widgetBox(parent, "Groups", orientation="vertical")
+        box2 = gui.widgetBox(box, orientation="horizontal")
+        gui.checkBox(box2, self, "graph.group_lines", "Group lines into", tooltip="Show clusters instead of lines",
                      callback=self.update_graph)
+        gui.spin(box2, self, "graph.number_of_groups", 0, 30, callback=self.update_graph)
+        gui.label(box2, self, "groups")
+        box2 = gui.widgetBox(box, orientation="horizontal")
+        gui.spin(box2, self, "graph.number_of_steps", 0, 100, label="In no more than", callback=self.update_graph)
+        gui.label(box2, self, "steps")
 
     def flip_attribute(self, item):
         if self.graph.flip_attribute(str(item.text())):
@@ -246,9 +252,11 @@ if __name__ == "__main__":
     a = QApplication(sys.argv)
     ow = OWParallelCoordinates()
     ow.show()
-    ow.graph.discrete_palette = ColorPaletteGenerator(
-        rgb_colors=[(127, 201, 127), (190, 174, 212), (253, 192, 134)])
-    data = Orange.data.Table("iris")
+    ow.graph.discrete_palette = ColorPaletteGenerator(rgb_colors=[(127, 201, 127), (190, 174, 212), (253, 192, 134)])
+    ow.graph.group_lines = True
+    ow.graph.number_of_groups = 10
+    ow.graph.number_of_steps = 30
+    data = Orange.data.Table("edt-all-vs-zero")
     ow.set_data(data)
     ow.handleNewSignals()
 
