@@ -197,7 +197,7 @@ class OWParallelGraph(OWPlot, ScaleData):
         phis, mus, sigmas = self.compute_groups()
 
         diff, mins = [], []
-        for i in range(len(self.domain_data_stat.stats)):
+        for i in self.attribute_indices:
             diff.append(self.domain_data_stat[i].max - self.domain_data_stat[i].min or 1)
             mins.append(self.domain_data_stat[i].min)
 
