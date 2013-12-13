@@ -4,7 +4,7 @@ from numpy import dot, exp, ones
 import sklearn.cluster
 
 
-def em(X, k, nsteps=30):
+def em(X, k, nsteps=30, window_size=2):
     """
     k expected classes,
     m data points,
@@ -28,11 +28,14 @@ def em(X, k, nsteps=30):
     w = np.empty((k, m))
     active = ones(k, dtype=np.bool)
 
-    for i in range(1, nsteps+1):
+    for i in range(1, nsteps + 1):
         print("Step ", i)
         for l in range(X.shape[1]):
-            dims = slice(l-1 if l > 0 else None, l+2 if l < dim - 1 else None)
-            active_dim = 1 if l > 0 else 0
+            lower = l - window_size if l - window_size >= 0 else None
+            upper = l + window_size + 1 if l + window_size + 1 <= dim else None
+            dims = slice(lower, upper)
+            active_dim = min(l, window_size)
+
             x = X[:, dims]
 
             # E step
