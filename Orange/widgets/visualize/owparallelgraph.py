@@ -221,8 +221,6 @@ class OWParallelGraph(OWPlot, ScaleData):
 
             X = self.original_data[self.attribute_indices].T
             w, mu, sigma, phi = anze_gmm.em(X, self.number_of_groups, self.number_of_steps)
-            Y = np.argmax(w, axis=0)
-            print([(Y == j).sum() for j in range(self.number_of_groups)])
             self.groups = (self.attributes, self.number_of_groups, self.number_of_steps), phi, mu, sigma
         return self.groups[1:]
 
