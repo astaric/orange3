@@ -4,7 +4,7 @@ from numpy import dot, exp, ones
 import sklearn.cluster
 
 
-def em(X, k, nsteps=30, window_size=2):
+def em(X, k, nsteps=30, window_size=1):
     """
     k expected classes,
     m data points,
