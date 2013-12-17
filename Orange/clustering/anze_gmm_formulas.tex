@@ -2,6 +2,7 @@
 \usepackage[utf8]{inputenc}
 \usepackage{graphicx}
 \usepackage{marginnote}
+\usepackage{algpseudocode}
 
 \title{Cluster reduction using locality aware clustering}
 
@@ -12,9 +13,30 @@
 A Gaussian mixture model (GMM) is a parametric statistical model that assumes that the data originates from a weighted sum of several Gaussian sources. More formally, a GMM is given by
 $p(x|\Theta) = \sum^M_{l=1}\alpha_lp(x|\theta_l)$, where $\alpha_l$ denotes the weight of each Gaussian, $\theta_l$ its respective parameters and  $M$ denotes the number of Gaussian sources in GMM. EM is a widely used method for estimating parameter set of the model ($\Theta$) using unlabeled data~\cite{dempster77}.
 
-Our method performs one iteration of the EM algorithm in multiple consecutive steps, where each step updates one component of the parameters based on the subset of the data.
+Our method performs one iteration of the EM algorithm in multiple consecutive steps, where each step updates one component of the parameters.
 
 \section{Our method}
+Learning a mixture of Gaussian models on multidimensional vectors constructs a model that takes all features into account. Clusters fit the data well, but when displayed on a parallel coordinates display they overlap.
+
+Learning a mixture of Gaussians for each feature independently leads to clusters that fit value distribution for each feature well, but now examples that belong to the same cluster on one feature connect to multiple clusters on the other feature which results in noise.
+
+Our method updates each component of the parameters independently, but considers local neighborhood when calculating updates.
+
+\begin{algorithmic}
+\For {$feature$ {\bf in} $dataset$}
+    \State $i\gets 0$
+\EndFor
+\end{algorithmic}
+
+
+
+
+
+
+
+
+
+
 Let
 $p(x) = \sum_{l=1}^M\alpha_lp(x|\theta_l)$ denote our GMM. Each 
 $p(x|\theta_l)$ term is a Gaussian parametrized by $\theta_l = (\mu_l, \Sigma_l)$ with a mixing coefficient of $\alpha_l$. Let {\bf X} denote data points, {\bf X}$ = \{x_i\}_{i=1}^N$, each with $dim$ dimensions.
