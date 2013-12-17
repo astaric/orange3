@@ -60,7 +60,7 @@ class OWParallelGraph(OWPlot, ScaleData):
         self.visualized_mid_labels = []
         self.attribute_indices = []
         self.valid_data = []
-        self.groups = None
+        self.groups = {}
 
         self.selected_examples = []
         self.unselected_examples = []
@@ -71,7 +71,7 @@ class OWParallelGraph(OWPlot, ScaleData):
         OWPlot.setData(self, data)
         ScaleData.set_data(self, data, subset_data, **args)
         self.domain_contingencies = None
-        self.groups = None
+        self.groups = {}
 
     def update_data(self, attributes, mid_labels=None):
         old_selection_conditions = self.selection_conditions
@@ -216,13 +216,14 @@ class OWParallelGraph(OWPlot, ScaleData):
         self.replot()
 
     def compute_groups(self):
-        if not self.groups or self.groups[0] != (self.attributes, self.number_of_groups, self.number_of_steps):
+        key = (tuple(self.attributes), self.number_of_groups, self.number_of_steps)
+        if key not in self.groups:
             from Orange.clustering import anze_gmm
 
             X = self.original_data[self.attribute_indices].T
             w, mu, sigma, phi = anze_gmm.em(X, self.number_of_groups, self.number_of_steps)
-            self.groups = (self.attributes, self.number_of_groups, self.number_of_steps), phi, mu, sigma
-        return self.groups[1:]
+            self.groups[key] = phi, mu, sigma
+        return self.groups[key]
 
     def draw_legend(self):
         if self.data_has_class:
