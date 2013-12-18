@@ -12,15 +12,19 @@
 \section{Definition}
 \marginnote{TODO: definicija preisana iz enega clanka, povzemi po svoje}
 A Gaussian mixture model (GMM) is a parametric statistical model that assumes that the data originates from a weighted sum of several Gaussian sources. More formally, a GMM is given by
-$p(x|\Theta) = \sum^M_{l=1}\alpha_lp(x|\theta_l)$, where $\alpha_l$ denotes the weight of each Gaussian, $\theta_l$ its respective parameters and  $M$ denotes the number of Gaussian sources in GMM. EM is a widely used method for estimating parameter set of the model ($\Theta$) using unlabeled data~\cite{dempster77}.
+$p(x|\Theta) = \sum^k_{j=1}\alpha_jp(x|\theta_j)$, where $\alpha_j$ denotes the weight of each Gaussian, $\theta_j$ its respective parameters and  $k$ denotes the number of Gaussian sources in GMM. Expectation maximization (algorithmi~\ref{std_gmm}) is a widely used method for estimating parameter set of the model ($\Theta$) using unlabeled data~\cite{dempster77}. In the algorithms, we optimize GMM for dataset $X$, which has $m$ examples, and each of the Gaussians is parametrized by mean $\mu$, covariance matrix $\Sigma$ and its prior $\phi$. 
+
 
 \begin{algorithm}
 \caption{Standard EM GMM}
+\label{std_gmm}
 \begin{algorithmic}
 \Function{em\_gmm}{$max\_steps$, $X$}
 \State $initialize(\mu, \Sigma, \phi)$
 \For {$step$   {\bf in} $1..max\_step$}
-    \State $w_j^{(i)}\gets p(z^{(i)} = j|x^{(i)}; \phi, \mu, \Sigma)$
+    \For {{\bf each} $i\gets1..m$, $j\gets1..k$}
+        \State $w_j^{(i)}\gets p(z^{(i)} = j|x^{(i)}; \phi, \mu, \Sigma)$
+    \EndFor
     \State
     \State $\phi_j\gets\frac{1}{m}\sum_{i=1}^{m}w_j^{(i)}$
     \State $\mu_j\gets\frac{\sum_{i=1}^mw_j^{(i)}x^{(i)}}{\sum_{i=1}^mw_j^{(i)}}$
@@ -35,16 +39,19 @@ Learning a mixture of Gaussian models on multidimensional vectors constructs a m
 
 Learning a mixture of Gaussians for each feature independently leads to clusters that fit value distribution for each feature well, but now examples that belong to the same cluster on one feature connect to multiple clusters on the other feature which results in noise.
 
-Our method updates each component of the parameters independently, but considers local neighborhood when calculating updates.
+Our method (algorithm~\ref{our_gmm}) optimizes each component of the parameters independently, but considers local neighborhood when calculating updates.
 \begin{algorithm}
 \caption{Modified EM GMM}
+\label{our_gmm}
 \begin{algorithmic}
 \Function{our\_em\_gmm}{$max\_steps$, $window\_size$, $X$}
 \State $initialize(\mu, \Sigma, \phi)$
 \For {$step$   {\bf in} $1..max\_step$}
     \For {$f$ {\bf in} $features$}
         \State $XS\gets select\_features(f, window\_size, X)$
-        \State $w_j^{(i)}\gets p(z^{(i)} = j|xs^{(i)}; \phi, \mu, \Sigma)$
+        \For {{\bf each} $i\gets1..m$, $j\gets1..k$}
+            \State $w_j^{(i)}\gets p(z^{(i)} = j|xs^{(i)}; \phi, \mu, \Sigma)$
+        \EndFor
         \State
         \State $\phi_{j}\gets\frac{1}{m}\sum_{i=1}^{m}w_j^{(i)}$
         \State $\mu_{j,f}\gets\frac{\sum_{i=1}^mw_j^{(i)}xs^{(i)}}{\sum_{i=1}^mw_j^{(i)}}$
