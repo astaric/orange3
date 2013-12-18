@@ -2,6 +2,7 @@
 \usepackage[utf8]{inputenc}
 \usepackage{graphicx}
 \usepackage{marginnote}
+\usepackage{algorithm}
 \usepackage{algpseudocode}
 
 \title{Cluster reduction using locality aware clustering}
@@ -13,7 +14,21 @@
 A Gaussian mixture model (GMM) is a parametric statistical model that assumes that the data originates from a weighted sum of several Gaussian sources. More formally, a GMM is given by
 $p(x|\Theta) = \sum^M_{l=1}\alpha_lp(x|\theta_l)$, where $\alpha_l$ denotes the weight of each Gaussian, $\theta_l$ its respective parameters and  $M$ denotes the number of Gaussian sources in GMM. EM is a widely used method for estimating parameter set of the model ($\Theta$) using unlabeled data~\cite{dempster77}.
 
-Our method performs one iteration of the EM algorithm in multiple consecutive steps, where each step updates one component of the parameters.
+\begin{algorithm}
+\caption{Standard EM GMM}
+\begin{algorithmic}
+\Function{em\_gmm}{$max\_steps$, $X$}
+\State $initialize(\mu, \Sigma, \phi)$
+\For {$step$   {\bf in} $1..max\_step$}
+    \State $w_j^{(i)}\gets p(z^{(i)} = j|x^{(i)}; \phi, \mu, \Sigma)$
+    \State
+    \State $\phi_j\gets\frac{1}{m}\sum_{i=1}^{m}w_j^{(i)}$
+    \State $\mu_j\gets\frac{\sum_{i=1}^mw_j^{(i)}x^{(i)}}{\sum_{i=1}^mw_j^{(i)}}$
+    \State $\Sigma_j\gets\frac{\sum_{i=1}^mw_j^{(i)}(x^{(i)}-\mu_j)(x^{(i)}-\mu_j)^T}{\sum_{i=1}^mw_j^{(i)}}$
+\EndFor
+\EndFunction
+\end{algorithmic}
+\end{algorithm}
 
 \section{Our method}
 Learning a mixture of Gaussian models on multidimensional vectors constructs a model that takes all features into account. Clusters fit the data well, but when displayed on a parallel coordinates display they overlap.
@@ -21,39 +36,24 @@ Learning a mixture of Gaussian models on multidimensional vectors constructs a m
 Learning a mixture of Gaussians for each feature independently leads to clusters that fit value distribution for each feature well, but now examples that belong to the same cluster on one feature connect to multiple clusters on the other feature which results in noise.
 
 Our method updates each component of the parameters independently, but considers local neighborhood when calculating updates.
-
+\begin{algorithm}
+\caption{Modified EM GMM}
 \begin{algorithmic}
-\For {$feature$ {\bf in} $dataset$}
-    \State $i\gets 0$
+\Function{our\_em\_gmm}{$max\_steps$, $window\_size$, $X$}
+\State $initialize(\mu, \Sigma, \phi)$
+\For {$step$   {\bf in} $1..max\_step$}
+    \For {$f$ {\bf in} $features$}
+        \State $XS\gets select\_features(f, window\_size, X)$
+        \State $w_j^{(i)}\gets p(z^{(i)} = j|xs^{(i)}; \phi, \mu, \Sigma)$
+        \State
+        \State $\phi_{j}\gets\frac{1}{m}\sum_{i=1}^{m}w_j^{(i)}$
+        \State $\mu_{j,f}\gets\frac{\sum_{i=1}^mw_j^{(i)}xs^{(i)}}{\sum_{i=1}^mw_j^{(i)}}$
+        \State $\Sigma_{j,f}\gets\frac{\sum_{i=1}^mw_j^{(i)}(xs^{(i)}-\mu_j)(xs^{(i)}-\mu_j)^T}{\sum_{i=1}^mw_j^{(i)}}$
+    \EndFor
 \EndFor
+\EndFunction
 \end{algorithmic}
-
-
-
-
-
-
-
-
-
-
-Let
-$p(x) = \sum_{l=1}^M\alpha_lp(x|\theta_l)$ denote our GMM. Each 
-$p(x|\theta_l)$ term is a Gaussian parametrized by $\theta_l = (\mu_l, \Sigma_l)$ with a mixing coefficient of $\alpha_l$. Let {\bf X} denote data points, {\bf X}$ = \{x_i\}_{i=1}^N$, each with $dim$ dimensions.
-
-In order to draw clusters on the parallel coordinates plot, we need GMM parameters for each of the data dimensions. Estimating GMM for {\bf X}, we get $dim$-dimensional $\mu_l$ and $\Sigma_l$, where each dimensions corresponds to the cluster parameters for the respective data feature. 
-
-
-
-
-
-As we will project the Gaussians to each of the dimensions, we can safely assume that the covariance matrices are diagonal.
-
-
-
-
-
-
+\end{algorithm}
 
 \begin{thebibliography}{9}
 
