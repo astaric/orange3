@@ -105,7 +105,7 @@ class OWParallelGraph(OWPlot, ScaleData):
             self.draw_groups()
         else:
             self.show_statistics = True
-            #self.draw_curves()
+            self.draw_curves()
         self.draw_distributions()
         self.draw_axes()
         self.draw_statistics()

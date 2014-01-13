@@ -8,7 +8,7 @@
 \usepackage{subcaption}
 
 
-\title{Clutter reduction using locality aware clustering}
+\title{Clutter reduction in Parallel Coordinates using locality-aware clustering}
 \author{An\v{z}e Stari\v{c} and Janez Dem\v{s}ar and Bla\v{z} Zupan}
 \begin{document}
 \maketitle
@@ -32,7 +32,7 @@ Novotny~\cite{N04} uses a modified version of k-means clustering and displays cl
 
 Andrienko et. al~\cite{AA04} propose two methods of visualizing distribution of attribute values within clusters. First approach splits intersection of cluster with each axis into quantiles and then draws lines connecting them, thus showing dense parts as narrow bands within the cluster. Another approach are ellipse plots that can be shown behind each axis and also visualize axis value distribution.
 
-Our approach is similar to~\cite{FWR99b,JLJC05,N04} as it also uses clusters to reduce clutter. Like~\cite{BH03}, it uses probability based clustering that assigns example a probability of belonging to a specific cluster. Clusters are drawn with polygon like in~\cite{N04,AA04}. We borrow drawing quantiles in clusters from~\cite{AA04} to provide additional information about value distribution inside clusters.. 
+Our approach is similar to~\cite{FWR99b,JLJC05,N04} as it also uses clusters to reduce clutter. Like~\cite{BH03}, it uses probability based clustering that assigns example a probability of belonging to a specific cluster. Clusters are drawn with polygon like in~\cite{N04,AA04}. We borrow drawing quantiles in clusters from~\cite{AA04} to provide additional information about value distribution inside clusters.
 
 \section{Expectation maximization}
 \marginnote{TODO: definicija preisana iz enega clanka, povzemi po svoje}
