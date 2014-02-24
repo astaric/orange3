@@ -21,9 +21,11 @@ class Setting:
     """Description of a setting.
     """
 
-    def __init__(self, default, **data):
+    def __init__(self, default, label="", description="", **data):
         self.name = None  # Name gets set in widget's meta class
         self.default = default
+        self.label = label
+        self.description = description
         self.__dict__.update(data)
 
     def __str__(self):
@@ -327,6 +329,20 @@ class SettingsHandler:
         for setting, data, instance in self.provider.traverse_settings(instance=instance):
             if type(setting) == Setting:
                 setattr(instance, setting.name, setting.default)
+
+    def resolve(self, setting):
+        def resolve(setting, provider):
+            for setting_name, setting2 in provider.settings.items():
+                if setting is setting2:
+                    return setting_name
+
+            for provider_name, provider2 in provider.providers.items():
+                setting_name = resolve(setting, provider2)
+                if setting_name:
+                    return provider_name + '.' + setting_name
+
+        return resolve(setting, self.provider)
+
 
 
 class ContextSetting(Setting):

@@ -3,6 +3,7 @@ import os
 import re
 from PyQt4 import QtGui, QtCore
 from PyQt4.QtCore import Qt
+from Orange.widgets.settings import Setting
 from Orange.widgets.utils import getdeepattr
 
 from Orange.widgets.utils.constants import CONTROLLED_ATTRIBUTES, ATTRIBUTE_CONTROLLERS
@@ -674,8 +675,16 @@ def doubleSpin(widget, master, value, minv, maxv, step=1, box=None, label=None,
                 alignment=alignment, keyboardTracking=keyboardTracking,
                 decimals=decimals, spinType=float, **misc)
 
+def read_from_setting(master, setting, label, options):
+    if label is None:
+        label = setting.label
+    if 'tooltip' not in options and setting.description:
+        options['tooltip'] = setting.description
+    value = master.settingsHandler.resolve(setting)
+    return value, label
 
-def checkBox(widget, master, value, label, box=None,
+
+def checkBox(widget, master, value, label=None, box=None,
              callback=None, getwidget=False, id_=None, labelWidth=None,
              disables=None, **misc):
     """
@@ -686,7 +695,7 @@ def checkBox(widget, master, value, label, box=None,
     :param master: master widget
     :type master: PyQt4.QtGui.QWidget
     :param value: the master's attribute with which the value is synchronized
-    :type value:  str
+    :type value:  str or Setting
     :param label: label
     :type label: str
     :param box: tells whether the widget has a border, and its label
@@ -713,6 +722,13 @@ def checkBox(widget, master, value, label, box=None,
         b = widgetBox(widget, box, orientation=None, addToLayout=False)
     else:
         b = widget
+
+    if isinstance(value, Setting):
+        from Orange.widgets.widget import OWWidget
+        assert(isinstance(master, OWWidget))
+
+        value, label = read_from_setting(master, value, label, misc)
+
     cbox = QtGui.QCheckBox(label, b)
 
     if labelWidth:
@@ -961,6 +977,8 @@ def button(widget, master, label, callback=None, width=None, height=None,
     elif callback:
         button.clicked.connect(callback)
 
+    if 'tooltip' not in misc and callback.__doc__:
+        misc['tooltip'] = callback.__doc__
     miscellanea(button, None, widget, **misc)
     return button
 

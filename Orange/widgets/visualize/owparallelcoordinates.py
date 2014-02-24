@@ -102,9 +102,8 @@ class OWParallelCoordinates(OWVisWidget):
 
     def add_visual_settings(self, parent):
         box = gui.widgetBox(parent, "Visual Settings")
-        gui.checkBox(box, self, 'graph.show_attr_values', 'Show attribute values', callback=self.update_graph)
-        gui.checkBox(box, self, 'graph.use_splines', 'Show splines', callback=self.update_graph,
-                     tooltip="Show lines using splines")
+        gui.checkBox(box, self, OWParallelGraph.show_attr_values, callback=self.update_graph)
+        gui.checkBox(box, self, OWParallelGraph.use_splines, callback=self.update_graph)
         self.graph.gui.show_legend_check_box(box)
 
     def add_annotation_settings(self, parent):
@@ -112,13 +111,11 @@ class OWParallelCoordinates(OWVisWidget):
         gui.comboBox(box, self, "graph.show_statistics", label="Statistics: ", orientation="horizontal", labelWidth=90,
                      items=["No statistics", "Means, deviations", "Median, quartiles"], callback=self.update_graph,
                      sendSelectedValue=False, valueType=int)
-        gui.checkBox(box, self, 'graph.show_distributions', 'Show distributions', callback=self.update_graph,
-                     tooltip="Show bars with distribution of class values (only for discrete attributes)")
+        gui.checkBox(box, self, OWParallelGraph.show_distributions, callback=self.update_graph)
 
     def add_color_settings(self, parent):
         box = gui.widgetBox(parent, "Colors", orientation="horizontal")
-        gui.button(box, self, "Set colors", self.select_colors,
-                   tooltip="Set the canvas background color and color palette for coloring continuous variables")
+        gui.button(box, self, "Set colors", self.select_colors)
 
     def flip_attribute(self, item):
         if self.graph.flip_attribute(str(item.text())):
@@ -208,6 +205,8 @@ class OWParallelCoordinates(OWVisWidget):
         self.update_graph()
 
     def select_colors(self):
+        """Set the canvas background color and color palette for coloring continuous variables"""
+
         dlg = self.color_picker
         if dlg.exec_():
             self.color_settings = dlg.getColorSchemas()

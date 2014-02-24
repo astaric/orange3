@@ -3,23 +3,20 @@
 #
 from collections import defaultdict
 import os
-import sys
 import math
 
 import numpy as np
-
 from PyQt4.QtCore import QLineF, Qt, QEvent, QRect, QPoint, QPointF
 from PyQt4.QtGui import QGraphicsPathItem, QPixmap, QColor, QBrush, QPen, QToolTip, QPainterPath
 
 from Orange.canvas.utils import environ
-
 from Orange.statistics.contingency import get_contingencies, get_contingency
-from Orange.statistics.distribution import get_distribution
-from Orange.widgets.settings import SettingProvider, Setting
+from Orange.widgets.settings import Setting
 from Orange.data import Variable
 from Orange.widgets.utils.plot import OWPlot, UserAxis, AxisStart, AxisEnd, OWCurve, OWPoint, PolygonCurve, \
     xBottom, yLeft
 from Orange.widgets.utils.scaling import get_variable_values_sorted, ScaleData
+
 
 VarTypes = Variable.VarTypes
 
@@ -33,11 +30,24 @@ HIDDEN = 0
 
 
 class OWParallelGraph(OWPlot, ScaleData):
-    show_distributions = Setting(False)
-    show_attr_values = Setting(True)
+    show_distributions = Setting(
+        default=False,
+        label="Show distributions",
+        description="Show bars with distribution of class values\n"
+                    "(only for discrete attributes)")
+
+    show_attr_values = Setting(
+        default=True,
+        label="Show attribute values",
+        description="Show attribute values on axes.")
+
     show_statistics = Setting(default=False)
 
-    use_splines = Setting(False)
+    use_splines = Setting(
+        default=False,
+        label="Show splines",
+        description="Show lines using splines")
+
     alpha_value = Setting(150)
     alpha_value_2 = Setting(150)
 
@@ -217,7 +227,7 @@ class OWParallelGraph(OWPlot, ScaleData):
                     data.append([()])
                     continue  # only for continuous attributes
 
-                if not self.data_has_class or self.data_has_continuous_class:    # no class
+                if not self.data_has_class or self.data_has_continuous_class:  # no class
                     attr_values = self.no_jittering_scaled_data[attr_idx]
                     attr_values = attr_values[~np.isnan(attr_values)]
 
