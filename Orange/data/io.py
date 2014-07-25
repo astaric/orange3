@@ -10,6 +10,16 @@ from ..data import _io
 from ..data import Domain
 from ..data.variable import *
 
+data_readers = {}
+
+
+def reader(extension):
+    def register_reader(reader_):
+        data_readers[extension] = reader_
+        return reader_
+
+    return register_reader
+
 
 class FileReader:
     def prescan_file(self, f, delim, nvars, disc_cols, cont_cols):
@@ -28,6 +38,7 @@ class FileReader:
         return values, decimals
 
 
+@reader(extension='.tab')
 class TabDelimReader:
     non_escaped_spaces = re.compile(r"(?<!\\) +")
 
@@ -193,6 +204,7 @@ class TabDelimReader:
         return table
 
 
+@reader(extension='.txt')
 class TxtReader:
     MISSING_VALUES = frozenset({"", "NA", "?"})
 
@@ -233,6 +245,7 @@ class TxtReader:
         return table
 
 
+@reader(extension='.basket')
 class BasketReader():
     def read_file(self, filename, cls=None):
         if cls is None:

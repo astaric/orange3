@@ -1,3 +1,4 @@
+from contextlib import contextmanager
 import os
 import unittest
 from itertools import chain
@@ -1044,15 +1045,15 @@ class CreateTableWithFilename(TableTests):
     filename = "data.tab"
 
     @patch("os.path.exists", Mock(return_value=True))
-    @patch("Orange.data.io.TabDelimReader")
-    def test_read_data_calls_reader(self, reader_mock):
+    def test_read_data_calls_reader(self):
         table_mock = Mock(data.Table)
-        reader_instance = reader_mock.return_value = \
-            Mock(read_file=Mock(return_value=table_mock))
 
-        table = data.Table.from_file(self.filename)
+        reader = Mock(read_file=Mock(return_value=table_mock))
 
-        reader_instance.read_file.assert_called_with(self.filename, data.Table)
+        with self.mock_reader(reader, '.tab'):
+            table = data.Table.from_file(self.filename)
+
+        reader.read_file.assert_called_with(self.filename, data.Table)
         self.assertEqual(table, table_mock)
 
     @patch("os.path.exists", Mock(return_value=False))
@@ -1077,6 +1078,17 @@ class CreateTableWithFilename(TableTests):
         data.Table(filename=self.filename)
 
         read_data.assert_called_with(self.filename)
+
+    @contextmanager
+    def mock_reader(self, reader, ext):
+        old_reader = data.io.data_readers.get(ext, None)
+        data.io.data_readers[ext] = lambda: reader
+
+        yield
+
+        if old_reader is not None:
+            data.io.data_readers[ext] = old_reader
+
 
 
 class CreateTableWithDomain(TableTests):
@@ -1152,7 +1164,6 @@ class CreateTableWithData(TableTests):
         self.assertIsInstance(table.domain, data.Domain)
         self.assertEqual(table.domain, domain)
         np.testing.assert_almost_equal(table.X, self.data)
-
 
 
     def test_creates_a_table_with_given_X_and_Y(self):
