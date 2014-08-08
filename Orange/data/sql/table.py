@@ -53,7 +53,8 @@ class SqlTable(table.Table):
         Class vars and metas can be specified as a list of column names in
         __class_vars__ and __metas__ keys in type_hints dict.
         """
-        assert uri is not None or database is not None
+        assert uri is not None or database is not None,\
+            "Specify URI or database"
 
         connection_args = dict(
             host=host,
