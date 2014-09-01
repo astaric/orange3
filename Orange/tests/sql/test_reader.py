@@ -147,6 +147,23 @@ SELECT attr1, attr2 FROM table
         self.assertIn('__classvars__', kwargs['type_hints'])
         self.assertIs(expected_table, table)
 
+    def test_can_defined_end_of_header(self):
+        connection_params, type_hints = self.reader._parse_header(
+            """% CONNECTION
+% host:      host
+% database:  database
+% user:      user
+% password:  password
+% schema:    schema
+% DOMAIN
+% attr1:  discrete
+% attr2:  continuous
+% END
+% nonattr: value""")
+        self.assertNotIn("nonattr", connection_params)
+        self.assertNotIn("nonattr", type_hints)
+
+
 
 def create_file(content):
     file = StringIO()

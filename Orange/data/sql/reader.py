@@ -38,6 +38,8 @@ class SqlReader:
                 section = connection_params
             elif line == "DOMAIN":
                 section = domain_hints
+            elif line == "END":
+                section = None
 
             if section is not None:
                 tokens = line.split(':', 1)
