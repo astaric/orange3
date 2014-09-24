@@ -29,7 +29,6 @@ def em(X, k, nsteps=30, window_size=1):
     active = ones(k, dtype=np.bool)
 
     for i in range(1, nsteps + 1):
-        print("Step ", i)
         for l in range(X.shape[1]):
             lower = l - window_size if l - window_size >= 0 else None
             upper = l + window_size + 1 if l + window_size + 1 <= dim else None
@@ -47,7 +46,7 @@ def em(X, k, nsteps=30, window_size=1):
                     det = covars[j, dims].prod()
                     inv_covars = 1. / covars[j, dims]
                     xn = x - means[j, dims]
-                    factor = (2.0 * np.pi) ** (x.shape[1] / 2.0) * det ** 0.5
+                    factor = (2.0 * np.pi) ** (x.shape[1]/ 2.0) * det ** 0.5
                     w[j] = priors[j] * exp(-.5 * np.sum(xn * inv_covars * xn, axis=1)) / factor
                 else:
                     w[j] = 0
@@ -80,6 +79,6 @@ def em(X, k, nsteps=30, window_size=1):
             xn = X - means[j]
             factor = (2.0 * np.pi) ** (xn.shape[1] / 2.0) * det ** 0.5
             w[j] = priors[j] * exp(-.5 * np.sum(xn * inv_covars * xn, axis=1)) / factor
-        w[active] /= w[active].sum(axis=0)
+    w[active] /= w[active].sum(axis=0)
 
     return w, means, covars, priors
