@@ -70,6 +70,7 @@ class OWParallelGraph(OWPlot, ScaleData):
     def set_data(self, data, subset_data=None, **args):
         OWPlot.setData(self, data)
         ScaleData.set_data(self, data, subset_data, **args)
+        self.data = data
         self.domain_contingencies = None
         self.groups = {}
 
@@ -220,8 +221,8 @@ class OWParallelGraph(OWPlot, ScaleData):
         if key not in self.groups:
             from Orange.clustering import anze_gmm
 
-            X = self.original_data[self.attribute_indices].T
-            w, mu, sigma, phi = anze_gmm.em(X, self.number_of_groups, self.number_of_steps)
+            conts = anze_gmm.create_contingencies(self.data[:, self.attribute_indices])
+            w, mu, sigma, phi = anze_gmm.em(conts, self.number_of_groups, self.number_of_steps)
             self.groups[key] = phi, mu, sigma
         return self.groups[key]
 
