@@ -76,7 +76,7 @@ def em(conts, k, nsteps=30, window_size=1):
                     mu = np.dot(w[l][j, :] * cw, x[:, active_dim]) / (w[l][j, :] * cw).sum()
 
                     xn = x[:, active_dim] - mu
-                    sigma = np.sum(xn ** 2 * w[l][j], axis=0) / (w[l][j, :] * cw).sum()
+                    sigma = np.sum(xn ** 2 * w[l][j] * cw, axis=0) / (w[l][j, :] * cw).sum()
 
                     if np.isnan(mu).any() or np.isnan(sigma).any():
                         return w, means, covars, priors
