@@ -43,7 +43,7 @@ elif method == "sklearn-full":
     phi = gmm.weights_
     Y = np.argmax(w.T, axis=0).reshape(-1, 1)
 elif method == "my":
-    w, mu, sigma, phi = anze_gmm.em(X, k)
+    w, mu, sigma, phi = anze_gmm.lac(X, k)
     Y = np.argmax(w, axis=0).reshape(-1, 1)
 elif method == "myc":
     w, mu, sigma, phi = _anze_gmm.em(X, k)

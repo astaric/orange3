@@ -68,11 +68,13 @@ class OWParallelGraph(OWPlot, ScaleData):
         self.top_pixmap = QPixmap(os.path.join(environ.widget_install_dir, "icons/downgreenarrow.png"))
 
     def set_data(self, data, subset_data=None, **args):
-        OWPlot.setData(self, data)
-        ScaleData.set_data(self, data, subset_data, **args)
         self.data = data
+        self.have_data = True
         self.domain_contingencies = None
         self.groups = {}
+        OWPlot.setData(self, data)
+        ScaleData.set_data(self, data, subset_data, no_data=True, **args)
+
 
     def update_data(self, attributes, mid_labels=None):
         old_selection_conditions = self.selection_conditions
@@ -154,11 +156,10 @@ class OWParallelGraph(OWPlot, ScaleData):
 
         selected_curves = defaultdict(list)
         background_curves = defaultdict(list)
-        for row_idx, data in enumerate(self.scaled_data.T):
-            if not self.valid_data[row_idx]:
-                continue
+        for row_idx, row in enumerate(self.data[:, self.attribute_indices]):
+            #if not self.valid_data[row_idx]:
+            #    continue
 
-            row = data[self.attribute_indices]
             color = self.select_color(row_idx)
 
             if is_selected(row):
@@ -176,9 +177,9 @@ class OWParallelGraph(OWPlot, ScaleData):
     def select_color(self, row_index):
         if self.data_has_class:
             if self.data_has_continuous_class:
-                return self.continuous_palette.getRGB(self.no_jittering_scaled_data[self.data_class_index][row_index])
+                return self.continuous_palette.getRGB(self.data[row_index, self.data_class_index])
             else:
-                return self.discrete_palette.getRGB(self.original_data[self.data_class_index][row_index])
+                return self.discrete_palette.getRGB(self.data[row_index, self.data_class_index])
         else:
             return 0, 0, 0
 
@@ -221,9 +222,13 @@ class OWParallelGraph(OWPlot, ScaleData):
         if key not in self.groups:
             from Orange.clustering import anze_gmm
 
+            self.start_progress()
             conts = anze_gmm.create_contingencies(self.data[:, self.attribute_indices])
-            w, mu, sigma, phi = anze_gmm.em(conts, self.number_of_groups, self.number_of_steps)
+            self.set_progress(50, 100)
+            w, mu, sigma, phi = anze_gmm.lac(conts, self.number_of_groups, self.number_of_steps)
+            self.set_progress(100, 100)
             self.groups[key] = phi, mu, sigma
+            self.end_progress()
         return self.groups[key]
 
     def draw_legend(self):
@@ -278,7 +283,7 @@ class OWParallelGraph(OWPlot, ScaleData):
                     curr = []
                     class_values = get_variable_values_sorted(self.data_domain.class_var)
                     for c in range(len(class_values)):
-                        attr_values = self.scaled_data[attr_idx, self.original_data[self.data_class_index] == c]
+                        attr_values = self.data[attr_idx, self.data[self.data_class_index] == c]
                         attr_values = attr_values[~np.isnan(attr_values)]
 
                         if len(attr_values) == 0:

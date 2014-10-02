@@ -1,9 +1,9 @@
 # coding=utf8
 from collections import defaultdict
 import numpy as np
-from numpy import dot, exp, ones
-import sklearn.cluster
+from numpy.testing import assert_almost_equal
 from Orange.data.discretization import DiscretizeTable
+from Orange.data.sql.table import SqlTable
 from Orange.feature.discretization import EqualFreq
 
 
@@ -27,7 +27,7 @@ def initialize_random(conts, k):
     return mu, sigma
 
 
-def em(conts, k, nsteps=30, window_size=1):
+def lac(conts, k, nsteps=30, window_size=1):
     """
     k expected classes,
     m data points,
@@ -42,7 +42,7 @@ def em(conts, k, nsteps=30, window_size=1):
     means, covars = initialize_random(conts, k)
 
     w = [np.empty((k, len(c[0]),)) for c in conts]
-    active = ones(k, dtype=np.bool)
+    active = np.ones(k, dtype=np.bool)
 
     for i in range(1, nsteps + 1):
         for l, (c, cw) in enumerate(conts):
@@ -110,18 +110,48 @@ def create_contingencies(X):
     m = [{i: (float(v[0]) if len(v) == 1 else (float(v[0]) + (float(v[1]) - float(v[0])) / 2))
           for i, v in enumerate(val)} for val in vals]
 
-    conts = [defaultdict(float) for i in range(len(X_.domain))]
-    for i, r in enumerate(X_):
-        row = tuple(m[vi].get(v) for vi, v in enumerate(r))
-        for l in range(len(X_.domain)):
-            lower = l - window_size if l - window_size >= 0 else None
-            upper = l + window_size + 1 if l + window_size + 1 <= dim else None
-            dims = slice(lower, upper)
-            active_dim = min(l, window_size)
+    if isinstance(X, SqlTable):
+        conts = []
+        al = len(X.domain)
+        if al > 1:
+            conts.append(create_sql_contingency(X_, [0, 1], m))
+            for a1, a2, a3 in zip(range(al), range(1, al), range(2, al)):
+                conts.append(create_sql_contingency(X_, [a1, a2, a3], m))
+            if al > 2:
+                conts.append(create_sql_contingency(X_, [al-2, al-1], m))
+    else:
+        conts = [defaultdict(float) for i in range(len(X_.domain))]
+        for i, r in enumerate(X_):
+            row = tuple(m[vi].get(v) for vi, v in enumerate(r))
+            for l in range(len(X_.domain)):
+                lower = l - window_size if l - window_size >= 0 else None
+                upper = l + window_size + 1 if l + window_size + 1 <= dim else None
+                dims = slice(lower, upper)
 
-            conts[l][row[dims]] += 1
+                conts[l][row[dims]] += 1
+        conts = [zip(*x.items()) for x in conts]
+        conts = [(np.array(c), np.array(cw)) for c, cw in conts]
 
-    conts = [zip(*c.items()) for c in conts]
+    # for i, ((c1, cw1), (c2, cw2)) in enumerate(zip(contss, conts)):
+    #     a = np.sort(np.hstack((c1, cw1[:, None])), axis=0)
+    #     b = np.sort(np.hstack((c2, cw2[:, None])), axis=0)
+    #     assert_almost_equal(a, b)
 
-    return [(np.array(c), np.array(cw)) for c, cw in conts]
+    return conts
 
+
+def create_sql_contingency(X, columns, m):
+    group_by = [a.to_sql() for a in (X.domain[c] for c in columns)]
+    fields = group_by + ['COUNT(%s)' % group_by[0]]
+    filters = [f.to_sql() for f in X.row_filters]
+    filters = [f for f in filters if f]
+    cur = X._sql_query(fields, filters, group_by)
+    def convert(row):
+        c = len(row) - 1
+        return [
+            m[columns[i]].get(v) if i != c else v
+            for i, v in enumerate(row)
+        ]
+
+    cont = np.array(list(map(convert, cur.fetchall())), dtype='float')
+    return cont[:, :-1], cont[:, -1:].flatten()
