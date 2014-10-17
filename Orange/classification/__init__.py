@@ -7,6 +7,8 @@ import Orange.data
 
 class Fitter:
     supports_multiclass = False
+    supports_continuous_features = True
+    supports_discrete_features = True
 
     def fit(self, X, Y, W):
         raise NotImplementedError(

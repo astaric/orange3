@@ -6,12 +6,14 @@ from Orange.statistics import contingency
 
 
 class BayesLearner(Fitter):
+    supports_continuous_features = False
+
     def fit_storage(self, table):
         if not isinstance(table, Storage):
             raise TypeError("Data is not a subclass of Orange.data.Storage.")
         if not all(isinstance(var, DiscreteVariable)
                    for var in table.domain.variables):
-            raise NotImplementedError("Only discrete variables are supported.")
+            raise ValueError("Only discrete variables are supported.")
 
         cont = contingency.get_contingencies(table)
         class_freq = np.diag(
