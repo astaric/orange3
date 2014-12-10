@@ -35,7 +35,7 @@ the virtual environment for orange is created with --system-site-packages,
 so it will have access to the installed PyQt4. When PyQt4 is installed,
 run
 
-    pip install -r requirements-gui.txt
+     pip install -r requirements-gui.txt
 
 to install the qt-based dependencies.
 
