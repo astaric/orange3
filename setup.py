@@ -49,7 +49,6 @@ INSTALL_REQUIRES = (
     'numpy',
     'scipy',
     'bottlechest',
-    "sqlparse"
 )
 
 if sys.version_info < (3, 4):
