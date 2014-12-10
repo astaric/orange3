@@ -13,13 +13,13 @@ https://github.com/biolab/orange (sources).
 Installing
 ----------
 
-This version of Orange requires Python 3.2 or newer. To build it, run::
+This version of Orange requires Python 3.4 or newer. To build it, run::
 
     pip install numpy
     pip install -r requirements.txt
     python setup.py develop
 
-inside a virtual environment that uses Python 3.2.
+inside a virtual environment that uses Python 3.4.
 
 Installation of Scipy and qt-graph-helpers is sometimes challenging because of
 their non-python dependencies that have to be installed manually. Detailed
@@ -30,9 +30,14 @@ Starting Orange Canvas
 ----------------------
 
 Orange Canvas requires PyQt, which is not pip-installable in Python 3. You
-have to download and install it system-wide. Make sure that the virtual
-environment for orange is created with --system-site-packages, so it will have
-access to the installed PyQt4.
+have to download and install it. If it is installed system-wide, make sure that
+the virtual environment for orange is created with --system-site-packages,
+so it will have access to the installed PyQt4. When PyQt4 is installed,
+run
+
+    pip install -r requirements-gui.txt
+
+to install the qt-based dependencies.
 
 To start Orange Canvas from the command line, run::
 
