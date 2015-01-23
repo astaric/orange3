@@ -3,7 +3,7 @@ import sys
 import numpy as np
 from PyQt4.QtCore import QSize
 from PyQt4 import QtGui
-from PyQt4.QtGui import QApplication, QColor
+from PyQt4.QtGui import QApplication, QColor, QCheckBox, QSizePolicy
 
 import Orange
 from Orange.data import Table, Variable, DiscreteVariable
@@ -120,6 +120,8 @@ class OWScatterPlot(OWWidget):
 
         g = self.graph.gui
         box2 = g.point_properties_box(self.controlArea, box)
+        x = gui.button(box2, self, "Set Colors", self.set_colors)
+        x.setVisible(False)
         gui.button(box2, self, "Set Colors", self.set_colors)
 
         box = gui.widgetBox(self.controlArea, "Plot Properties")
@@ -139,6 +141,88 @@ class OWScatterPlot(OWWidget):
         buttons[g.Pan].clicked.connect(self.graph.pan_button_clicked)
         buttons[g.SimpleSelect].clicked.connect(self.graph.select_button_clicked)
         buttons[g.ZoomReset].clicked.connect(self.graph.reset_button_clicked)
+
+        #1
+        b = gui.widgetBox(self.controlArea, box=True, orientation='vertical')
+        cb = gui.checkBox(b, self, "auto_send_selection", "Auto commit")
+        btn = gui.button(b, self, "Commit")
+        btn.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
+
+        #1.2
+        b = gui.widgetBox(self.controlArea, box=True, orientation='vertical')
+        btn = gui.button(b, self, "Commit")
+        btn.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
+        c = gui.widgetBox(b, box=False, orientation='horizontal')
+        gui.rubber(c)
+        cb = gui.checkBox(c, self, "auto_send_selection", "Auto commit")
+        gui.rubber(c)
+
+        #2
+        def u():
+            if self.auto_send_selection:
+                self.btn3.setText("Auto Commit")
+                self.btn3.setCheckable(True)
+                self.btn3.setChecked(True)
+            else:
+                self.btn3.setText("Commit")
+                self.btn3.setCheckable(False)
+        def v():
+            if self.auto_send_selection:
+                self.btn3.setChecked(True)
+
+        b = gui.widgetBox(self.controlArea, box=True, orientation='vertical')
+        self.btn3 = gui.button(b, self, "Commit", callback=v)
+        self.btn3.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
+        cb = gui.checkBox(self.btn3, self, "auto_send_selection", " ", callback=u)
+        cb.move(10, 5)
+
+
+        #3
+        def u():
+            if self.auto_send_selection:
+                self.btn.setText("Auto Commit")
+                self.btn.setEnabled(False)
+            else:
+                self.btn.setText("Commit")
+                self.btn.setEnabled(True)
+        b = gui.widgetBox(self.controlArea, box=True, orientation='horizontal')
+        cb = gui.checkBox(b, self, "auto_send_selection", " ", callback=u, tooltip="Auto commit")
+        cb.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
+        self.btn = gui.button(b, self, "Commit")
+        self.btn.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
+        u()
+
+        #3
+        state = 0
+        def u():
+            nonlocal state
+            if self.btn2.isDown():
+                if state == 0:
+                    state = 1
+                    self.btn2.setText("Hold for Auto Commit")
+                elif state == 1:
+                    state = 2
+                    self.btn2.setText("Auto Commiting")
+            else:
+                if state == 0:
+                    self.btn2.setCheckable(False)
+                    self.btn2.setText("Commit")
+                elif state == 1:
+                    self.btn2.setText("Commit")
+                state = 0
+        b = gui.widgetBox(self.controlArea, box=True, orientation='horizontal')
+        self.btn2 = gui.button(b, self, "Commit", callback=u)
+        self.btn2.setAutoRepeat(True)
+        self.btn2.setAutoRepeatDelay(0)
+        self.btn2.setAutoRepeatInterval(1000)
+
+        self.btn2.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
+
+
+
+
+
+
         cb_auto_send = gui.checkBox(
             box, self, 'auto_send_selection', 'Send selection on change')
         gui.setStopper(self, buttons[g.SendSelection], cb_auto_send,
@@ -364,6 +448,8 @@ class OWScatterPlot(OWWidget):
 
 #test widget appearance
 if __name__ == "__main__":
+    import Orange.canvas.__main__
+
     a = QApplication(sys.argv)
     ow = OWScatterPlot()
     ow.show()
