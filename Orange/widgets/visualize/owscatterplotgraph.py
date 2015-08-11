@@ -535,7 +535,7 @@ class OWScatterPlotGraph(gui.OWComponent, ScaleScatterPlotData):
             x_grid = [min_x+i*x_sz for i in range(self.resolution)]
             y_grid = [min_y+i*y_sz for i in range(self.resolution)]
             img = self.compute_density(x_grid, y_grid, x_data, y_data, [pen.color() for pen in color_data])
-            self.density_img = ImageItem(img)
+            self.density_img = ImageItem(img, autoLevels=False)
             self.density_img.setRect(QRectF(min_x-x_sz/2, min_y-y_sz/2,
                                             max_x-min_x+x_sz, max_y-min_y+y_sz))
             self.plot_widget.addItem(self.density_img)
@@ -575,7 +575,7 @@ class OWScatterPlotGraph(gui.OWComponent, ScaleScatterPlotData):
         for neigh in ind:
             cnt = Counter(color_data[i] for i in neigh)
             main_color, color_count = cnt.most_common(1)[0]
-            a = 128*((color_count-lo)/(hi-lo))
+            a = int(128*((color_count-lo)/(hi-lo))) if lo != hi else 128
             colors += [(main_color[0], main_color[1], main_color[2], a)]
         return np.array(colors).reshape((len(x_grid), len(y_grid), 4))
 
@@ -593,7 +593,7 @@ class OWScatterPlotGraph(gui.OWComponent, ScaleScatterPlotData):
         return discrete_color and continuous_x and continuous_y
 
     def should_draw_density(self):
-        return self.class_density and self.n_points != 0 and self.can_draw_density()
+        return self.class_density and self.n_points > 1 and self.can_draw_density()
 
     def set_labels(self, axis, labels):
         axis = self.plot_widget.getAxis(axis)
