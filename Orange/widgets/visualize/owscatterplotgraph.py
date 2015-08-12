@@ -608,6 +608,8 @@ class OWScatterPlotGraph(gui.OWComponent, ScaleScatterPlotData):
         return np.array(colors).reshape((len(x_grid), len(y_grid), 4))
 
     def can_draw_density(self):
+        if self.data_domain is None:
+            return False
         discrete_color = False
         attr_color = self.attr_color
         if attr_color != "" and attr_color != "(Same color)":
@@ -778,10 +780,10 @@ class OWScatterPlotGraph(gui.OWComponent, ScaleScatterPlotData):
             if not keep_colors:
                 self.make_legend()
 
-        if self.should_draw_density():
-            self.update_data(self.shown_x, self.shown_y)
-        elif self.density_img:
-            self.plot_widget.removeItem(self.density_img)
+                if self.should_draw_density():
+                    self.update_data(self.shown_x, self.shown_y)
+                elif self.density_img:
+                    self.plot_widget.removeItem(self.density_img)
 
     update_alpha_value = update_colors
 
