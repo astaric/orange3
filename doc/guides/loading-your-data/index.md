@@ -154,4 +154,4 @@ If you are using LibreOffice, simply save your files in .xlsl format (available 
 
 ![image](saving-tab-delimited-files.png)
 
-<img src="saving-tab-delimited-files2.png" alt="image" width="400">
+![image](saving-tab-delimited-files2.png#width=400)
