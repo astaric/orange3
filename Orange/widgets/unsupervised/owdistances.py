@@ -1,5 +1,5 @@
 import numpy
-from PyQt4.QtCore import Qt
+from AnyQt.QtCore import Qt
 from scipy.sparse import issparse
 
 import Orange.data

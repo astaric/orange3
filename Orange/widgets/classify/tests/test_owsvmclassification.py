@@ -1,6 +1,6 @@
 # Test methods with long descriptive names can omit docstrings
 # pylint: disable=missing-docstring
-from PyQt4 import QtGui
+from AnyQt import QtWidgets
 
 from Orange.data import Table
 from Orange.widgets.classify.owsvmclassification import OWSVMClassification
@@ -10,11 +10,11 @@ from Orange.widgets.tests.base import WidgetTest
 class TestOWSVMClassification(WidgetTest):
     def setUp(self):
         self.widget = self.create_widget(OWSVMClassification)
-        self.widget.spin_boxes = self.widget.findChildren(QtGui.QDoubleSpinBox)
+        self.widget.spin_boxes = self.widget.findChildren(QtWidgets.QDoubleSpinBox)
         # max iter spin
-        self.widget.spin_boxes.append(self.widget.findChildren(QtGui.QSpinBox)[0])
+        self.widget.spin_boxes.append(self.widget.findChildren(QtWidgets.QSpinBox)[0])
         # max iter checkbox
-        self.widget.max_iter_check_box = self.widget.findChildren(QtGui.QCheckBox)[0]
+        self.widget.max_iter_check_box = self.widget.findChildren(QtWidgets.QCheckBox)[0]
         self.spin_boxes = self.widget.spin_boxes
         self.event_data = None
 

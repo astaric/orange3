@@ -1,7 +1,8 @@
 from collections import OrderedDict
 
-from PyQt4 import QtGui
-from PyQt4.QtCore import Qt
+from AnyQt import QtWidgets
+from AnyQt.QtWidgets import QLabel
+from AnyQt.QtCore import Qt
 
 from Orange.data import Table
 from Orange.classification.svm import SVMLearner, NuSVMLearner
@@ -136,14 +137,14 @@ class OWSVMClassification(OWBaseSVM):
     limit_iter = settings.Setting(True)
 
     def _add_type_box(self):
-        form = QtGui.QGridLayout()
+        form = QtWidgets.QGridLayout()
         self.type_box = box = gui.radioButtonsInBox(
             self.controlArea, self, "svmtype", [], box="SVM Type",
             orientation=form, callback=self.settings_changed)
 
         form.addWidget(gui.appendRadioButton(box, "C-SVM", addToLayout=False),
                        0, 0, Qt.AlignLeft)
-        form.addWidget(QtGui.QLabel("Cost (C):"),
+        form.addWidget(QLabel("Cost (C):"),
                        0, 1, Qt.AlignRight)
         form.addWidget(gui.doubleSpin(box, self, "C", 1e-3, 1000.0, 0.1,
                                       decimals=3, alignment=Qt.AlignRight,
@@ -153,7 +154,7 @@ class OWSVMClassification(OWBaseSVM):
 
         form.addWidget(gui.appendRadioButton(box, "ν-SVM", addToLayout=False),
                        1, 0, Qt.AlignLeft)
-        form.addWidget(QtGui.QLabel("Complexity (ν):"),
+        form.addWidget(QLabel("Complexity (ν):"),
                        1, 1, Qt.AlignRight)
         form.addWidget(gui.doubleSpin(box, self, "nu", 0.05, 1.0, 0.05,
                                       decimals=2, alignment=Qt.AlignRight,
@@ -198,7 +199,7 @@ class OWSVMClassification(OWBaseSVM):
 
 
 if __name__ == "__main__":
-    app = QtGui.QApplication([])
+    app = QtWidgets.QApplication([])
     w = OWSVMClassification()
     w.set_data(Table("iris")[:50])
     w.show()

@@ -1,5 +1,6 @@
-from PyQt4.QtGui import QColor, QSizePolicy, QPalette, QPen, QFont
-from PyQt4.QtCore import Qt, QRectF
+from AnyQt.QtWidgets import QSizePolicy
+from AnyQt.QtGui import QColor, QPen, QFont, QPalette
+from AnyQt.QtCore import Qt, QRectF
 
 import pyqtgraph as pg
 import numpy as np
@@ -254,7 +255,7 @@ class OWUnivariateRegression(OWBaseLearner):
 
 if __name__ == "__main__":
     import sys
-    from PyQt4.QtGui import QApplication
+    from AnyQt.QtWidgets import QApplication
 
     a = QApplication(sys.argv)
     ow = OWUnivariateRegression()
