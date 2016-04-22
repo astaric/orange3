@@ -1,6 +1,7 @@
 #! /usr/bin/env python3
 
 import os
+import platform
 import sys
 import subprocess
 from setuptools import find_packages, Command
@@ -216,6 +217,18 @@ class CoverageCommand(Command):
         ''', shell=True, cwd=os.path.dirname(os.path.abspath(__file__))))
 
 
+data_files = []
+if platform.system() in ['Linux', 'FreeBSD']:
+    usr_share = os.path.join(sys.prefix, "share")
+    if not os.access(usr_share, os.W_OK):
+        if 'XDG_DATA_HOME' in os.environ.keys():
+            usr_share = os.environ['$XDG_DATA_HOME']
+        else:
+            usr_share = os.path.expanduser('~/.local/share')
+    data_files += [
+        (os.path.join(usr_share, 'applications/'), ['distribution/orange-canvas.desktop']),
+        (os.path.join(usr_share, 'pixmaps/'), ['distribution/orange-canvas.png'])
+    ]
 
 
 def setup_package():
@@ -223,6 +236,7 @@ def setup_package():
     setup(
         configuration=configuration,
         name=NAME,
+        data_files=data_files,
         description=DESCRIPTION,
         long_description=LONG_DESCRIPTION,
         author=AUTHOR,
