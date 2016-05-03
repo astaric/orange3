@@ -3,11 +3,7 @@ import unittest
 from contextlib import contextmanager
 
 try:
-    from Orange.widgets.tests import test_setting_provider, \
-        test_settings_handler, test_context_handler, \
-        test_class_values_context_handler, test_domain_context_handler, \
-        test_perfect_domain_context_handler, \
-        test_owselectcolumns, test_scatterplot_density, test_widgets_outputs
+    from Orange import widgets
     run_widget_tests = True
 except ImportError:
     run_widget_tests = False
@@ -36,20 +32,12 @@ def suite(loader=None, pattern='test*.py'):
     all_tests = [
         loader.discover(test_dir, pattern),
     ]
-    load = loader.loadTestsFromModule
 
     if run_widget_tests:
-        all_tests.extend([
-            load(test_setting_provider),
-            load(test_settings_handler),
-            load(test_context_handler),
-            load(test_class_values_context_handler),
-            load(test_domain_context_handler),
-            load(test_perfect_domain_context_handler),
+        widgets_test_dir = os.path.dirname(widgets.__file__)
 
-            load(test_owselectcolumns),
-            load(test_scatterplot_density),
-            load(test_widgets_outputs),
+        all_tests.extend([
+            unittest.TestLoader().discover(widgets_test_dir, pattern)
         ])
     return unittest.TestSuite(all_tests)
 
