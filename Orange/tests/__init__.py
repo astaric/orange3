@@ -54,8 +54,8 @@ def suite(loader=None, pattern='test*.py'):
 
             old_match_path = loader._match_path
             def _match_path(path, full_path, pattern):
-                result = old_match_path(full_path, pattern)
-                print(full_path, pattern, result)
+                result = old_match_path(path, full_path, pattern)
+                print(path, full_path, pattern, result)
                 return result
             loader._match_path = _match_path
 
