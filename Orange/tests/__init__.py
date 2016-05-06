@@ -37,12 +37,21 @@ def suite(loader=None, pattern='test*.py'):
         widgets_test_dir = os.path.dirname(widgets.__file__)
         loader = unittest.TestLoader()
 
-        old_find_test_path = loader._find_test_path
-        def _find_test_path(full_path, pattern, namespace=False):
-            result = old_find_test_path(full_path, pattern, namespace)
-            print(full_path, result)
-            return result
-        loader._find_test_path = _find_test_path
+        if hasattr(loader, '_find_test_path'):
+            old_find_test_path = loader._find_test_path
+            def _find_test_path(full_path, pattern, namespace=False):
+                result = old_find_test_path(full_path, pattern, namespace)
+                print(full_path, result)
+                return result
+            loader._find_test_path = _find_test_path
+        else:
+            old_loadTestsFromModule = loader.loadTestsFromModule
+            def loadTestsFromModule(self, module, use_load_tests=True):
+                result = old_loadTestsFromModule(module, use_load_tests)
+                print(module, result)
+                return result
+            loader.loadTestsFromModule = loadTestsFromModule
+
         all_tests.extend([
             loader.discover(widgets_test_dir, pattern)
         ])
