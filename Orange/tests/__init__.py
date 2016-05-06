@@ -30,14 +30,21 @@ def suite(loader=None, pattern='test*.py'):
     if pattern is None:
         pattern = 'test*.py'
     all_tests = [
-        loader.discover(test_dir, pattern),
+        #loader.discover(test_dir, pattern),
     ]
 
     if run_widget_tests:
         widgets_test_dir = os.path.dirname(widgets.__file__)
+        loader = unittest.TestLoader()
 
+        old_find_test_path = loader._find_test_path
+        def _find_test_path(full_path, pattern, namespace=False):
+            result = old_find_test_path(full_path, pattern, namespace)
+            print(full_path, result)
+            return result
+        loader._find_test_path = _find_test_path
         all_tests.extend([
-            unittest.TestLoader().discover(widgets_test_dir, pattern)
+            loader.discover(widgets_test_dir, pattern)
         ])
     return unittest.TestSuite(all_tests)
 
