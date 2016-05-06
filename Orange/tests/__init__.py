@@ -46,9 +46,9 @@ def suite(loader=None, pattern='test*.py'):
             loader._find_test_path = _find_test_path
         else:
             old_loadTestsFromModule = loader.loadTestsFromModule
-            def loadTestsFromModule(self, module, use_load_tests=True):
+            def loadTestsFromModule(module, use_load_tests=True):
                 result = old_loadTestsFromModule(module, use_load_tests)
-                print(module, result)
+                print(module, use_load_tests, result)
                 return result
             loader.loadTestsFromModule = loadTestsFromModule
 
