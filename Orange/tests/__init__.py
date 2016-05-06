@@ -52,6 +52,14 @@ def suite(loader=None, pattern='test*.py'):
                 return result
             loader.loadTestsFromModule = loadTestsFromModule
 
+            old_match_path = loader._match_path
+            def _match_path(path, full_path, pattern):
+                result = old_match_path(full_path, pattern)
+                print(full_path, pattern, result)
+                return result
+            loader._match_path = _match_path
+
+
         all_tests.extend([
             loader.discover(widgets_test_dir, pattern)
         ])
