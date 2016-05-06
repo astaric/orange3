@@ -2,7 +2,7 @@ from unittest import TestCase
 from unittest.mock import Mock
 from Orange.widgets.settings import ContextHandler, Setting, ContextSetting
 
-__author__ = 'anze'
+print("TEST CONTEXT HANDLER!!!")
 
 
 class SimpleWidget:
@@ -12,6 +12,8 @@ class SimpleWidget:
 
 
 class ContextHandlerTestCase(TestCase):
+    def setUp(self):
+        print("Pa sej nekej delam!!!")
     def test_initialize(self):
         handler = ContextHandler()
         handler.provider = Mock()
