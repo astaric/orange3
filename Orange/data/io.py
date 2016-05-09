@@ -233,6 +233,7 @@ class FileFormat(metaclass=FileFormatMeta):
         """
         self.filename = filename
         self.sheet = None
+        self.override_header = None
 
     @property
     def sheets(self):
@@ -371,7 +372,6 @@ class FileFormat(metaclass=FileFormatMeta):
 
         return header_rows, data
 
-    @classmethod
     def data_table(self, data, headers=None):
         """
         Return Orange.data.Table given rows of `headers` (iterable of iterable)
@@ -386,6 +386,11 @@ class FileFormat(metaclass=FileFormatMeta):
         """
         if not headers:
             headers, data = self.parse_headers(data)
+
+        if self.override_header:
+            self.header = headers = self.override_header
+        else:
+            self.header = headers
 
         # Consider various header types (single-row, two-row, three-row, none)
         if 3 == len(headers):
@@ -787,7 +792,9 @@ class UrlReader(FileFormat):
                 # delete=False is a workaround for https://bugs.python.org/issue14243
 
             reader = self.get_reader(f.name)
+            reader.override_header = self.override_header
             data = reader.read()
+            self.header = reader.header
             unlink(f.name)
         # Override name set in from_file() to avoid holding the temp prefix
         data.name = path.splitext(name)[0]
