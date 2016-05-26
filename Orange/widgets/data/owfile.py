@@ -206,6 +206,7 @@ class OWFile(widget.OWWidget, RecentPathsWComboMixin):
         QtCore.QTimer.singleShot(0, self.load_data)
 
         self.setAcceptDrops(True)
+
     def sizeHint(self):
         return QtCore.QSize(600, 550)
 

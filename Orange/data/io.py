@@ -14,7 +14,7 @@ from math import isnan
 from numbers import Number
 from itertools import chain, repeat
 from functools import lru_cache
-from collections import OrderedDict
+from collections import OrderedDict, Counter
 from urllib.parse import urlparse, unquote as urlunquote
 from urllib.request import urlopen
 
@@ -326,7 +326,7 @@ class FileFormat(metaclass=FileFormatMeta):
         return open_compressed(filename, *args, **kwargs)
 
     @staticmethod
-    def parse_headers(data):
+    def split_header_and_data(data):
         """Return (header rows, rest of data) as discerned from `data`"""
 
         def is_number(item):
@@ -372,26 +372,7 @@ class FileFormat(metaclass=FileFormatMeta):
 
         return header_rows, data
 
-    def data_table(self, data, headers=None):
-        """
-        Return Orange.data.Table given rows of `headers` (iterable of iterable)
-        and rows of `data` (iterable of iterable; if ``numpy.ndarray``, might
-        as well **have it sorted column-major**, e.g. ``order='F'``).
-
-        Basically, the idea of subclasses is to produce those two iterables,
-        however they might.
-
-        If `headers` is not provided, the header rows are extracted from `data`,
-        assuming they precede it.
-        """
-        if not headers:
-            headers, data = self.parse_headers(data)
-
-        if self.override_header:
-            self.header = headers = self.override_header
-        else:
-            self.header = headers
-
+    def parse_header(self, headers):
         # Consider various header types (single-row, two-row, three-row, none)
         if 3 == len(headers):
             names, types, flags = map(list, headers)
@@ -413,16 +394,45 @@ class FileFormat(metaclass=FileFormatMeta):
             types = [''.join(filter(str.isupper, flag)).lower() for flag in _flags]
             flags = [Flags.join(filter(str.islower, flag)) for flag in _flags]
 
-        # Determine maximum row length
+        return names, types, flags
+
+    def data_table(self, data, headers=None):
+        """
+        Return Orange.data.Table given rows of `headers` (iterable of iterable)
+        and rows of `data` (iterable of iterable; if ``numpy.ndarray``, might
+        as well **have it sorted column-major**, e.g. ``order='F'``).
+
+        Basically, the idea of subclasses is to produce those two iterables,
+        however they might.
+
+        If `headers` is not provided, the header rows are extracted from `data`,
+        assuming they precede it.
+        """
+        if not headers:
+            headers, data = self.split_header_and_data(data)
+
+        if self.override_header:
+            self.header = headers = self.override_header
+        else:
+            self.header = headers
+
+        names, types, flags = self.parse_header(headers)  # Determine maximum row length
         rowlen = max(map(len, (names, types, flags)))
+
+        # Ensure all data is of equal width in a column-contiguous array
+        data = np.array([list(row) for row in data if any(row)],
+                        copy=False, dtype=object, order='F')
+
+        if len(data.shape) == 1:
+            # 1d array is created when lines are not of the same length
+            lengths = Counter(len(row) for row in data).most_common()
+            print(lengths)
+
+            raise ValueError("Invalid dataset")
 
         def _equal_length(lst):
             lst.extend(['']*(rowlen - len(lst)))
             return lst
-
-        # Ensure all data is of equal width in a column-contiguous array
-        data = np.array([_equal_length(list(row)) for row in data if any(row)],
-                        copy=False, dtype=object, order='F')
 
         # Data may actually be longer than headers were
         try: rowlen = data.shape[1]
@@ -671,7 +681,7 @@ class CSVReader(FileFormat):
                 except Exception as e:
                     error = e
                     continue
-        raise ValueError('Cannot parse dataset {}: {}'.format(self.filename, error))
+        raise ValueError('Cannot parse dataset {}: {}'.format(self.filename, error)) from error
 
     @classmethod
     def write_file(cls, filename, data):

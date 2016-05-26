@@ -137,6 +137,11 @@ class TestTabReader(unittest.TestCase):
         )
         self.assertEqual(data.domain[0].attributes, ATTRIBUTES)
 
+    def test_tab9(self):
+        reader = TabReader(path.join(path.dirname(__file__), 'test9.tab'))
+        reader.read()
+
+
     def test_sheets(self):
         file1 = io.StringIO("\n".join("xd dbac"))
         reader = TabReader(file1)
