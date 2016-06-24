@@ -5,12 +5,52 @@ Change Log
 ------------
 * ...
 
+
+##### Enhancements
+* Sieve: Discretize continuous variables (#1372)
+* Nicer reporting of tabular data (e.g. Confusion Matrix) (#1309)
+* Canvas quick menu: match only at the beginning of word (#1363)
+* Univar regression coefficients (#1186)
+* Add Mahalanobis distance (#1355)
+* Move Data Table higher in the 'suggested widgets' list (#1346)
+* Support Distances on Sparse Data (#1345)
+* Add auto apply to Test & Score (#1344)
+* OWPaintData: Fix and improve handling of input data (#1342)
+* Support unix timestamps in TimeVariable (#1335)
+* Skip Hidden Attributes in SelectRows (#1324)
+* Preprocessor widget: add random feature selection (#1112)
+* Win installer: upgrade bundled numpy version to 1.10.4 (#1312)
+* Sort list of available add-ons (#1305)
+
+##### Bugfixes
+* Mosaic: Output original data, not discretized (#1371)
+* OWFile: Consider missing values when changing domain (#1367)
+* OWLinearProjection: Fix report (#1361)
+* OWLinearProjection: Fixups (#1360)
+* OWSelectColumns: auto-apply (#1353)
+* Fix a RuntimeError in 'Image Viewer' when clearing the scene (#1357)
+* Use https to query pypi API (#1343)
+* OWBaseLearner: Add name attribute to learner (#1340)
+* Pass data attributes after preprocess. (#1333)
+* Support Sparse Matrices (#1306)
+* Table: Remove parameter from warn() call (#1330)
+* gui.auto_commit: Fix crash when caller gives  argument (#1325)
+* Image viewer runtime error (#1322)
+* io: Safer check for attributes when storing (#1321)
+* Canvas item selection indicators (#1308)
+* Open correct help file for add-on widgets (#1307)
+* OSX app build fix (#1294)
+* Fix windows installer build scripts due to changed project name (#1293)
+* Tests: Relative test datasets search path (#1289)
+
+
 [3.3.5] - 2016-06-01
 --------------------
 ##### Bugfixes
 * Revert hack that caused missing icons in osx build
 * Fix installation in environments without numpy installed (#1291)
 * Allow running of library test when PyQt is not available (#1289)
+
 
 [3.3.4] - 2016-05-27
 --------------------
@@ -118,7 +158,8 @@ Change Log
 * Initial version based on Python 1.5.2 and Qt 2.3
 
 
-[next]: https://github.com/biolab/orange3/compare/3.3.5...HEAD
+[next]: https://github.com/biolab/orange3/compare/3.3.6...HEAD
+[3.3.6]: https://github.com/biolab/orange3/compare/3.3.5...3.3.6
 [3.3.5]: https://github.com/biolab/orange3/compare/3.3.4...3.3.5
 [3.3.4]: https://github.com/biolab/orange3/compare/3.3.3...3.3.4
 [3.3.3]: https://github.com/biolab/orange3/compare/3.3.2...3.3.3
