@@ -11,7 +11,7 @@ from AnyQt.QtGui import (
     QDoubleValidator, QRegExpValidator, QStandardItemModel, QStandardItem,
     QFontMetrics, QPalette
 )
-from AnyQt.QtCore import Qt, QPoint, QRegExp, QPersistentModelIndex
+from AnyQt.QtCore import Qt, QPoint, QRegExp, QPersistentModelIndex, QLocale
 
 from Orange.data import (ContinuousVariable, DiscreteVariable, StringVariable,
                          Table, TimeVariable)
@@ -270,9 +270,20 @@ class OWSelectRows(widget.OWWidget):
         return tuple(cont)
 
     class QDoubleValidatorEmpty(QDoubleValidator):
+        """Locale independent validator that accepts empty value.
+
+        Allows values that can be later parsed by float()
+        """
+        def __init__(self, parent=None):
+            super().__init__(parent)
+            self.setLocale(QLocale(QLocale.C))
+
         def validate(self, input_, pos):
             if not input_:
-                return (QDoubleValidator.Acceptable, input_, pos)
+                return QDoubleValidator.Acceptable, input_, pos
+            elif self.locale().groupSeparator() in input_:
+                # float() chokes on group separators
+                return QDoubleValidator.Invalid, input_, pos
             else:
                 return super().validate(input_, pos)
 
