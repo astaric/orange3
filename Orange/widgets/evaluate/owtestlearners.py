@@ -4,6 +4,8 @@ import functools
 
 from collections import OrderedDict, namedtuple
 
+import Orange.classification
+
 import numpy as np
 
 from AnyQt import QtGui
@@ -14,14 +16,15 @@ from AnyQt.QtCore import Qt, QSize
 from Orange.data import Table, DiscreteVariable
 from Orange.data.sql.table import SqlTable, AUTO_DL_LIMIT
 import Orange.evaluation
-import Orange.classification
+
 import Orange.regression
 
 from Orange.base import Learner
 from Orange.evaluation import scoring, Results
 from Orange.preprocess.preprocess import Preprocess
 from Orange.preprocess import RemoveNaNClasses
-from Orange.widgets import widget, gui, settings
+from Orange.widgets import widget, gui
+from Orange.widgets.settings import Setting, ContextSetting, PerfectDomainContextHandler
 from Orange.widgets.utils.itemmodels import DomainModel
 from Orange.widgets.widget import OWWidget, Msg
 
@@ -139,7 +142,7 @@ class OWTestLearners(OWWidget):
                ("Evaluation Results", Results)]
 
     settings_version = 2
-    settingsHandler = settings.PerfectDomainContextHandler(metas_in_res=True)
+    settingsHandler = PerfectDomainContextHandler(metas_in_res=True)
 
     #: Resampling/testing types
     KFold, FeatureFold, ShuffleSplit, LeaveOneOut, TestOnTrain, TestOnTest \
@@ -152,23 +155,23 @@ class OWTestLearners(OWWidget):
     SampleSizes = [5, 10, 20, 25, 30, 33, 40, 50, 60, 66, 70, 75, 80, 90, 95]
 
     #: Selected resampling type
-    resampling = settings.Setting(0)
+    resampling = Setting(0)
     #: Number of folds for K-fold cross validation
-    n_folds = settings.Setting(3)
+    n_folds = Setting(3)
     #: Stratified sampling for K-fold
-    cv_stratified = settings.Setting(True)
+    cv_stratified = Setting(True)
     #: Number of repeats for ShuffleSplit sampling
-    n_repeats = settings.Setting(3)
+    n_repeats = Setting(3)
     #: ShuffleSplit sample size
-    sample_size = settings.Setting(9)
+    sample_size = Setting(9)
     #: Stratified sampling for Random Sampling
-    shuffle_stratified = settings.Setting(True)
+    shuffle_stratified = Setting(True)
     # CV where nr. of feature values determines nr. of folds
-    fold_feature = settings.ContextSetting(None)
-    fold_feature_selected = settings.ContextSetting(False)
+    fold_feature = ContextSetting(None)
+    fold_feature_selected = ContextSetting(False)
 
     TARGET_AVERAGE = "(Average over classes)"
-    class_selection = settings.ContextSetting(TARGET_AVERAGE)
+    class_selection = ContextSetting(TARGET_AVERAGE)
 
     class Error(OWWidget.Error):
         train_data_empty = Msg("Train data set is empty.")
@@ -712,12 +715,19 @@ class OWTestLearners(OWWidget):
         self.report_table("Scores", self.view)
 
     @classmethod
-    def migrate_settings(cls, settings_, version):
+    def migrate_settings(cls, settings, version):
         if version < 2:
+<<<<<<< Updated upstream
             if not hasattr(settings_["context_settings"][0], "attributes"):
                 settings_["context_settings"][0].attributes = {}
             if settings_["resampling"] > 0:
                 settings_["resampling"] += 1
+=======
+            if not hasattr(settings.get("context_settings", [None])[0], "attributes"):
+                settings["context_settings"][0].attributes = {}
+            if settings["resampling"] > 0:
+                settings["resampling"] += 1
+>>>>>>> Stashed changes
 
 
 def learner_name(learner):
