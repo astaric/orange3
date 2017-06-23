@@ -39,20 +39,20 @@ class SelectRowsContextHandler(DomainContextHandler):
     def encode_setting(self, context, setting, value):
         if setting.name == 'conditions':
             CONTINUOUS = vartype(ContinuousVariable())
-            for i, (attr, op, values) in enumerate(value):
+            for i, (attr_type, attr, op, values) in enumerate(value):
                 if context.attributes.get(attr) == CONTINUOUS:
                     if values and isinstance(values[0], str):
                         values = [QLocale().toDouble(v)[0] for v in values]
-                        value[i] = (attr, op, values)
+                        value[i] = (attr_type, attr, op, values)
         return super().encode_setting(context, setting, value)
 
     def decode_setting(self, setting, value, domain=None):
         value = super().decode_setting(setting, value, domain)
         if setting.name == 'conditions':
-            for i, (attr, op, values) in enumerate(value):
+            for i, (attr_type, attr, op, values) in enumerate(value):
                 var = attr in domain and domain[attr]
                 if var and var.is_continuous and not isinstance(var, TimeVariable):
-                    value[i] = (attr, op,
+                    value[i] = (attr_type, attr, op,
                                 list([QLocale().toString(float(i), 'f')
                                       for i in values]))
         return value
@@ -83,11 +83,13 @@ class OWSelectRows(widget.OWWidget):
     want_main_area = False
 
     settingsHandler = SelectRowsContextHandler()
-    conditions = ContextSetting([])
+    conditions = ContextSetting([], exclude_metas=False)
     update_on_change = Setting(True)
     purge_attributes = Setting(True)
     purge_classes = Setting(True)
     auto_commit = Setting(True)
+
+    settings_version = 2
 
     Operators = {
         ContinuousVariable: [
@@ -416,7 +418,7 @@ class OWSelectRows(widget.OWWidget):
         variables = list(self._visible_variables(self.data.domain))
         varnames = [v.name for v in variables]
         if self.conditions:
-            for attr, cond_type, cond_value in self.conditions:
+            for attr_type, attr, cond_type, cond_value in self.conditions:
                 if attr in varnames:
                     self.add_row(varnames.index(attr), cond_type, cond_value)
         elif variables:
@@ -429,7 +431,8 @@ class OWSelectRows(widget.OWWidget):
         try:
             self.conditions = []
             self.conditions = [
-                (self.cond_list.cellWidget(row, 0).currentText(),
+                (vartype(self.data.domain[self.cond_list.cellWidget(row, 0).currentText()]),
+                 self.cond_list.cellWidget(row, 0).currentText(),
                  self.cond_list.cellWidget(row, 1).currentIndex(),
                  self._get_value_contents(self.cond_list.cellWidget(row, 2)))
                 for row in range(self.cond_list.rowCount())]
@@ -469,7 +472,7 @@ class OWSelectRows(widget.OWWidget):
         if self.data:
             domain = self.data.domain
             conditions = []
-            for attr_name, oper_idx, values in self.conditions:
+            for attr_type, attr_name, oper_idx, values in self.conditions:
                 attr_index = domain.index(attr_name)
                 attr = domain[attr_index]
                 operators = self.Operators[type(attr)]
@@ -622,6 +625,14 @@ class OWSelectRows(widget.OWWidget):
                   "{} instances".format(match_inst) if match_inst else "None"),
                  ("Non-matching data",
                   nonmatch_inst > 0 and "{} instances".format(nonmatch_inst))))
+
+    @classmethod
+    def migrate_context(cls, context, version):
+        if version < 2:
+            context.values["conditions"] = [
+                [context.attributes.get(name, context.metas.get(name, -2)), name, oper, values]
+                for name, oper, values in context.values.get("conditions", ())
+            ]
 
 
 class CheckBoxPopup(QWidget):

@@ -12,6 +12,7 @@ from Orange.widgets.tests.base import WidgetTest, datasets
 
 from Orange.data.filter import FilterContinuous, FilterString
 from Orange.widgets.tests.utils import simulate, override_locale
+from Orange.widgets.utils import vartype
 
 CFValues = {
     FilterContinuous.Equal: ["5.4"],
@@ -47,6 +48,8 @@ DFValues = {
     FilterDiscreteType.In: [0, 1],
     FilterDiscreteType.IsDefined: [],
 }
+
+ATTR_NAME, ATTR_VALUE, OPER, VALUES = range(4)
 
 
 class TestOWSelectRows(WidgetTest):
@@ -93,12 +96,12 @@ class TestOWSelectRows(WidgetTest):
         # Validating with C locale should accept decimal point
         self.widget.remove_all_button.click()
         self.enterFilter(iris.domain[2], "is below", "5.2")
-        self.assertEqual(self.widget.conditions[0][2], ("5.2",))
+        self.assertEqual(self.widget.conditions[0][VALUES], ("5.2",))
 
         # but not decimal comma
         self.widget.remove_all_button.click()
         self.enterFilter(iris.domain[2], "is below", "5,2")
-        self.assertEqual(self.widget.conditions[0][2], ("52",))
+        self.assertEqual(self.widget.conditions[0][VALUES], ("52",))
 
     @override_locale(QLocale.Slovenian)  # Locale with decimal comma
     def test_continuous_filter_with_sl_SI_locale(self):
@@ -108,12 +111,12 @@ class TestOWSelectRows(WidgetTest):
         # sl_SI locale should accept decimal comma
         self.widget.remove_all_button.click()
         self.enterFilter(iris.domain[2], "is below", "5,2")
-        self.assertEqual(self.widget.conditions[0][2], ("5,2",))
+        self.assertEqual(self.widget.conditions[0][VALUES], ("5,2",))
 
         # but not decimal point
         self.widget.remove_all_button.click()
         self.enterFilter(iris.domain[2], "is below", "5.2")
-        self.assertEqual(self.widget.conditions[0][2], ("52",))
+        self.assertEqual(self.widget.conditions[0][VALUES], ("52",))
 
     def enterFilter(self, variable, filter, value=None, value2=None):
         row = self.widget.cond_list.model().rowCount()
@@ -149,14 +152,12 @@ class TestOWSelectRows(WidgetTest):
         # sl_SI locale should accept decimal comma
         self.widget.remove_all_button.click()
         self.enterFilter(iris.domain[2], "is below", "5,2")
-        self.assertEqual(self.widget.conditions[0][2], ("5,2",))
+        self.assertEqual(self.widget.conditions[0][VALUES], ("5,2",))
 
         context = self.widget.current_context
         self.send_signal(self.widget.Inputs.data, None)
         saved_condition = context.values["conditions"][0]
-        self.assertEqual(saved_condition[2][0], 5.2)
-
-
+        self.assertEqual(saved_condition[VALUES][0], 5.2)
 
     @override_locale(QLocale.C)
     def test_restores_continuous_filter_in_c_locale(self):
@@ -166,7 +167,7 @@ class TestOWSelectRows(WidgetTest):
             iris.domain, [["sepal length", 2, ("5.2",)]])
         self.send_signal(self.widget.Inputs.data, iris)
 
-        values = self.widget.conditions[0][2]
+        values = self.widget.conditions[0][VALUES]
         self.assertTrue(values[0].startswith("5.2"))
 
         # Settings with float value
@@ -174,7 +175,7 @@ class TestOWSelectRows(WidgetTest):
             iris.domain, [["sepal length", 2, (5.2,)]])
         self.send_signal(self.widget.Inputs.data, iris)
 
-        values = self.widget.conditions[0][2]
+        values = self.widget.conditions[0][VALUES]
         self.assertTrue(values[0].startswith("5.2"))
 
     @override_locale(QLocale.Slovenian)
@@ -185,7 +186,7 @@ class TestOWSelectRows(WidgetTest):
             iris.domain, [["sepal length", 2, ("5.2",)]])
         self.send_signal(self.widget.Inputs.data, iris)
 
-        values = self.widget.conditions[0][2]
+        values = self.widget.conditions[0][VALUES]
         self.assertTrue(values[0].startswith("5,2"))
 
         # Settings with float value
@@ -193,7 +194,7 @@ class TestOWSelectRows(WidgetTest):
             iris.domain, [["sepal length", 2, (5.2,)]])
         self.send_signal(self.widget.Inputs.data, iris)
 
-        values = self.widget.conditions[0][2]
+        values = self.widget.conditions[0][VALUES]
         self.assertTrue(values[0].startswith("5,2"))
 
     def test_load_settings(self):
